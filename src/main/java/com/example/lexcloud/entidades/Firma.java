@@ -14,11 +14,16 @@ public class Firma {
     private Integer id;
     @Column(name = "nombre", nullable = false, length = 200)
     private String nombre;
+    @Column(name = "nit", nullable = false, length = 50, unique = true)
+    private String nit;
     @Column(name = "integrante", nullable = false)
     private Integer integrante;
 
     @OneToMany(mappedBy = "firma")
     private Set<Abogado> abogados = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "idFirma")
+    private Set<Cliente> clientes = new LinkedHashSet<>();
 
     public Integer getId() {
         return id;
@@ -50,5 +55,21 @@ public class Firma {
 
     public void setAbogados(Set<Abogado> abogados) {
         this.abogados = abogados;
+    }
+
+    public Set<Cliente> getClientes() {
+        return clientes;
+    }
+
+    public void setClientes(Set<Cliente> clientes) {
+        this.clientes = clientes;
+    }
+
+    public String getNit() {
+        return nit;
+    }
+
+    public void setNit(String nit) {
+        this.nit = nit;
     }
 }

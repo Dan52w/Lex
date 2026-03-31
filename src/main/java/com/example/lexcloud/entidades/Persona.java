@@ -2,6 +2,7 @@ package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.SQLDelete;
 
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
@@ -9,6 +10,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "personas")
+@SQLDelete(sql = "UPDATE personas SET activo = false WHERE id = ?") // Al borrar, solo cambia el estado
 public class Persona {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +25,8 @@ public class Persona {
     @ColumnDefault("true")
     @Column(name = "activo", nullable = false)
     private Boolean activo;
+    @Column(name = "telefono", nullable = false, length = 20)
+    private String telefono;
 
     // CAMBIO: En lugar de Integer, usamos el objeto Rol
     @ManyToOne(fetch = FetchType.LAZY) // Muchos usuarios tienen un mismo Rol
@@ -48,6 +52,9 @@ public class Persona {
 
     @OneToMany(mappedBy = "persona")
     private Set<Historial_Cambio> historial_Cambios = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "idPersona")
+    private Set<Cliente> clientes = new LinkedHashSet<>();
 
     public Integer getId() {
         return id;
@@ -143,5 +150,21 @@ public class Persona {
 
     public void setHistorial_Cambios(Set<Historial_Cambio> historial_Cambios) {
         this.historial_Cambios = historial_Cambios;
+    }
+
+    public Set<Cliente> getClientes() {
+        return clientes;
+    }
+
+    public void setClientes(Set<Cliente> clientes) {
+        this.clientes = clientes;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
     }
 }

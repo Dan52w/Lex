@@ -22,7 +22,7 @@ public class Firma {
     @OneToMany(mappedBy = "firma")
     private Set<Abogado> abogados = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "idFirma")
+    @OneToMany(mappedBy = "firma")
     private Set<Cliente> clientes = new LinkedHashSet<>();
 
     public Integer getId() {

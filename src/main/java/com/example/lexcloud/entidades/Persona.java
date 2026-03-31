@@ -43,7 +43,7 @@ public class Persona {
     private Login login;
 
     // Casos donde esta persona aparece como "Persona Firma"
-    @OneToMany(mappedBy = "persona_Firma")
+    @OneToMany(mappedBy = "personaFirma")
     private Set<Vinculo_Caso> vinculosComoFirma = new LinkedHashSet<>();
 
     // Casos donde esta persona aparece como "Cliente"
@@ -53,7 +53,7 @@ public class Persona {
     @OneToMany(mappedBy = "persona")
     private Set<Historial_Cambio> historial_Cambios = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "idPersona")
+    @OneToMany(mappedBy = "persona")
     private Set<Cliente> clientes = new LinkedHashSet<>();
 
     public Integer getId() {

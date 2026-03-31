@@ -16,7 +16,7 @@ public class Vinculo_Caso {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_persona_firma", nullable = false)
-    private Persona persona_Firma;
+    private Persona personaFirma;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_cliente", nullable = false)
@@ -46,12 +46,12 @@ public class Vinculo_Caso {
         this.autorizado = autorizado;
     }
 
-    public Persona getPersona_Firma() {
-        return persona_Firma;
+    public Persona getPersonaFirma() {
+        return personaFirma;
     }
 
-    public void setPersona_Firma(Persona persona_Firma) {
-        this.persona_Firma = persona_Firma;
+    public void setPersonaFirma(Persona personaFirma) {
+        this.personaFirma = personaFirma;
     }
 
     public Persona getCliente() {

@@ -21,11 +21,11 @@ public class Cliente {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_persona", nullable = false)
-    private Persona idPersona;
+    private Persona persona;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_firma", nullable = false)
-    private Firma idFirma;
+    private Firma firma;
 
     public Integer getId() {
         return id;
@@ -51,19 +51,19 @@ public class Cliente {
         this.activo = activo;
     }
 
-    public Persona getIdPersona() {
-        return idPersona;
+    public Persona getPersona() {
+        return persona;
     }
 
-    public void setIdPersona(Persona idPersona) {
-        this.idPersona = idPersona;
+    public void setPersona(Persona persona) {
+        this.persona = persona;
     }
 
-    public Firma getIdFirma() {
-        return idFirma;
+    public Firma getFirma() {
+        return firma;
     }
 
-    public void setIdFirma(Firma idFirma) {
-        this.idFirma = idFirma;
+    public void setFirma(Firma firma) {
+        this.firma = firma;
     }
 }

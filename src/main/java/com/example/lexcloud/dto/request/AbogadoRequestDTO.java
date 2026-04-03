@@ -1,12 +1,12 @@
 package com.example.lexcloud.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record AbogadoRequestDTO(
-        @NotBlank(message = "El ID de persona es obligatorio")
+        @NotNull(message = "El ID de persona es obligatorio")
         Integer idPersona,
-        @NotBlank(message = "La firma es obligatorio")
+        @NotNull(message = "La firma es obligatorio")
         Integer idFirma,
-        @NotBlank(message = "El tipo de abogado es obligatorio")
+        @NotNull(message = "El tipo de abogado es obligatorio")
         Integer idTipoAbogado
 ) {}

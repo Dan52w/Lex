@@ -20,13 +20,9 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND c.activo = true")
     List<Caso> findCasosAutorizadosPorPersona(@Param("personaId") Integer personaId);
 
-    // 3. Búsqueda por título ignorando mayúsculas pero manteniendo palabra completa
-    @Query("SELECT c FROM Caso c " +
-            "JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
-            "WHERE vc.personaFirma.id = :personaId " +
-            "AND LOWER(c.titulo) = LOWER(:titulo) " +
-            "AND vc.autorizado = true")
-    List<Caso> findByTituloExactoAndPersona(@Param("titulo") String titulo, @Param("personaId") Integer personaId);
+    @Query("SELECT c FROM Caso c JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
+            "WHERE vc.personaFirma.id = :personaId AND LOWER(c.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))")
+    List<Caso> buscarPorTituloParcial(@Param("titulo") String titulo, @Param("personaId") Integer personaId);
 
     // 4. Listar casos por Estado (ej: 'Abierto', 'Cerrado') que pertenezcan al usuario
     @Query("SELECT c FROM Caso c " +
@@ -36,17 +32,7 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND vc.autorizado = true")
     List<Caso> findByEstadoAndPersona(@Param("estadoNombre") String estadoNombre, @Param("personaId") Integer personaId);
 
-    // 1. Filtrar por NOMBRE del Estado (Navegando: Caso -> Estado -> Nombre)
-    // Ejemplo: Buscar todos los casos "Activos" de un Abogado
-    @Query("SELECT c FROM Caso c " +
-            "JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
-            "WHERE vc.personaFirma.id = :personaId " +
-            "AND c.estado.nombre = :nombreEstado " +
-            "AND vc.autorizado = true")
-    List<Caso> findByEstadoNombreAndPersona(@Param("nombreEstado") String nombreEstado,
-                                            @Param("personaId") Integer personaId);
-
-    // 2. Filtrar por ID del Subtipo de Caso
+    // 5. Filtrar por ID del Subtipo de Caso
     // Útil cuando el usuario selecciona el subtipo desde un dropdown (select)
     @Query("SELECT c FROM Caso c " +
             "JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
@@ -56,7 +42,7 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
     List<Caso> findBySubtipoIdAndPersona(@Param("subtipoId") Integer subtipoId,
                                          @Param("personaId") Integer personaId);
 
-    // 3. Filtro Combinado: Por Estado Y por Subtipo
+    // 6. Filtro Combinado: Por Estado Y por Subtipo
     // Para búsquedas muy específicas en el panel de LexCloud
     @Query("SELECT c FROM Caso c " +
             "JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +

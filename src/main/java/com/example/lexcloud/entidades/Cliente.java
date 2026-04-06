@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "clientes")
@@ -14,7 +15,7 @@ public class Cliente {
     private Integer id;
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "fecha_vinculacion")
-    private Instant fechaVinculacion;
+    private LocalDate fechaVinculacion;
     @ColumnDefault("true")
     @Column(name = "activo")
     private Boolean activo;
@@ -35,11 +36,11 @@ public class Cliente {
         this.id = id;
     }
 
-    public Instant getFechaVinculacion() {
+    public LocalDate getFechaVinculacion() {
         return fechaVinculacion;
     }
 
-    public void setFechaVinculacion(Instant fechaVinculacion) {
+    public void setFechaVinculacion(LocalDate fechaVinculacion) {
         this.fechaVinculacion = fechaVinculacion;
     }
 

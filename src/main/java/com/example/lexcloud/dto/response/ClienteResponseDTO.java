@@ -1,10 +1,10 @@
 package com.example.lexcloud.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public record ClienteResponseDTO(Integer id,
                                  String nombrePersona,
                                  String nombreFirma,
-                                 LocalDateTime fecha_vinculación,
+                                 LocalDate fechaVinculacion,
                                  boolean activo) {
 }

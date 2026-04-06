@@ -18,6 +18,8 @@ public interface ClienteMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "persona", ignore = true)
     @Mapping(target = "firma", ignore = true)
+    @Mapping(target = "fechaVinculacion", ignore = true)
+    @Mapping(target = "activo", ignore = true)
     Cliente toEntity(ClienteRequestDTO request);
 
     List<ClienteResponseDTO> toResponseList(List<Cliente> clientes);

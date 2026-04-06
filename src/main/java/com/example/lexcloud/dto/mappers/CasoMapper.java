@@ -14,7 +14,6 @@ public interface CasoMapper {
     // 1. De Entidad a Response (Salida)
     @Mapping(source = "estado.nombre", target = "estadoNombre")
     @Mapping(source = "subtipo_Caso.nombre", target = "subtipoNombre")
-    @Mapping(source = "casoPadre.titulo", target = "tituloCasoPadre")
     CasoResponseDTO toResponse(Caso caso);
 
     // 2. De Request a Entidad (Entrada)
@@ -23,6 +22,8 @@ public interface CasoMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "estado", ignore = true)
     @Mapping(target = "subtipo_Caso", ignore = true)
+    @Mapping(target = "casoPadre", ignore = true)
+    @Mapping(target = "activo", constant = "true")
     Caso toEntity(CasoRequestDTO request);
 
     List<CasoResponseDTO> toResponseList(List<Caso> casos);

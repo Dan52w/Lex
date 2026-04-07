@@ -10,5 +10,7 @@ public record DocumentoRequestDTO(
         String nombre,
         String descripcion,
         @NotNull(message = "Se debe indicar que tipo de documento es")
-        Integer idTipoDocumento) {
+        Integer idTipoDocumento,
+        @NotNull(message = "El documento debe estar asociado a una firma")
+        String nitFirma) {
 }

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public record PersonaRequestDTO(
         @NotBlank(message = "El nombre de la persona no puede ir vacio")
@@ -19,6 +19,6 @@ public record PersonaRequestDTO(
         @NotBlank(message = "La persona debe tener un telefono para su comunicación")
         String telefono,
         @NotNull(message = "La persona debe tener una fecha de nacimiento")
-        LocalDateTime fechaNacimiento
+        LocalDate fechaNacimiento
 ) {
 }

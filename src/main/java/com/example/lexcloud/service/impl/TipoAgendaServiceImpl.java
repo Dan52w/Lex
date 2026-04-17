@@ -7,10 +7,14 @@ import com.example.lexcloud.entidades.Tipo_Agenda;
 import com.example.lexcloud.repositorios.TipoAgenda_Repository;
 import com.example.lexcloud.service.TipoAgendaService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class TipoAgendaServiceImpl implements TipoAgendaService {
     private final TipoAgenda_Repository tipoAgendaRepository;
     private final TipoAgendaMapper tipoAgendaMapper;

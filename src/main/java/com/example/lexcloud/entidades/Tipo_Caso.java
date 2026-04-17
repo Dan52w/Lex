@@ -15,7 +15,7 @@ public class Tipo_Caso {
     private String nombre;
 
     // 'mappedBy' debe coincidir con el nombre del atributo en la clase Subtipo_Caso
-    @OneToMany(mappedBy = "tipo_Caso")
+    @OneToMany(mappedBy = "tipoCaso")
     private List<Subtipo_Caso> subtipos;
 
     public Integer getId() {

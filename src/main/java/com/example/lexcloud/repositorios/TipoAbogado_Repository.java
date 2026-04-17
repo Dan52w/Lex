@@ -9,5 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface TipoAbogado_Repository extends JpaRepository<Tipo_Abogado, Integer> {
-    Optional<Tipo_Abogado> findAllByNombre(String nombre);
+    List<Tipo_Abogado> findAllByNombre(String nombre);
+    Optional<Tipo_Abogado> findByNombre(String nombre);
 }

@@ -17,7 +17,7 @@ public class Subtipo_Caso {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tipo_caso", nullable = false)
-    private Tipo_Caso tipo_Caso;
+    private Tipo_Caso tipoCaso;
 
     @OneToMany(mappedBy = "subtipo_Caso")
     private Set<Caso> casos = new LinkedHashSet<>();
@@ -38,12 +38,12 @@ public class Subtipo_Caso {
         this.nombre = nombre;
     }
 
-    public Tipo_Caso getTipo_Caso() {
-        return tipo_Caso;
+    public Tipo_Caso getTipoCaso() {
+        return tipoCaso;
     }
 
-    public void setTipo_Caso(Tipo_Caso tipo_Caso) {
-        this.tipo_Caso = tipo_Caso;
+    public void setTipoCaso(Tipo_Caso tipoCaso) {
+        this.tipoCaso = tipoCaso;
     }
 
     public Set<Caso> getCasos() {

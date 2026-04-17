@@ -10,11 +10,11 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface SubtipoCasoMapper {
-    @Mapping(source = "tipo_Caso.nombre", target = "nombreTipoCaso")
+    @Mapping(source = "tipoCaso.nombre", target = "nombreTipoCaso")
     SubtipoCasoResponseDTO toResponse(Subtipo_Caso subtipoCaso);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "tipo_Caso", ignore = true)
+    @Mapping(target = "tipoCaso", ignore = true)
     Subtipo_Caso toEntity(SubtipoCasoRequestDTO request);
 
     List<SubtipoCasoResponseDTO> toResponseList(List<Subtipo_Caso> subtipoCasos);

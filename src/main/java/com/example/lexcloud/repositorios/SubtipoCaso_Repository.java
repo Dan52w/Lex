@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface SubtipoCaso_Repository extends JpaRepository<Subtipo_Caso, Integer> {
     List<Subtipo_Caso> findAllByNombre(String nombre);
     Optional<Subtipo_Caso> findByNombre(String nombre);
+    List<Subtipo_Caso> findByTipoCasoId(Integer idTipoCaso);
 }

@@ -60,7 +60,7 @@ public class TipoAgendaServiceImpl implements TipoAgendaService {
     public TipoAgendaResponseDTO actualizar(Integer id, TipoAgentaResquestDTO request) {
         return tipoAgendaRepository.findById(id).map(odlTipoAgenda -> {
             if(tipoAgendaRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("La especialización con el nombre '" + request.nombre() + "' ya existe.");
+                throw new IllegalArgumentException("La agenda con el nombre '" + request.nombre() + "' ya existe.");
             }
             odlTipoAgenda.setNombre(request.nombre());
             return tipoAgendaMapper.toResponse(tipoAgendaRepository.save(odlTipoAgenda));

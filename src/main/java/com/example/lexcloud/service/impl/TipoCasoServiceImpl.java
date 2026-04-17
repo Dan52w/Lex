@@ -27,7 +27,7 @@ public class TipoCasoServiceImpl implements TipoCasoService {
     @Override
     public TipoCasoResponseDTO guardar(TipoCasoRequestDTO request) {
         if(tipoCasoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("La Agenda con el nombre '" + request.nombre() + "' ya existe.");
+            throw new IllegalArgumentException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Caso tipoCaso = tipoCasoMapper.toEntity(request);

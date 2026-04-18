@@ -2,7 +2,6 @@ package com.example.lexcloud.dto.mappers;
 
 import com.example.lexcloud.dto.request.VinculoCasoRequestDTO;
 import com.example.lexcloud.dto.response.VinculoCasoResponseDTO;
-import com.example.lexcloud.dto.response.VinculoResponseDTO;
 import com.example.lexcloud.entidades.Vinculo_Caso;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -26,8 +25,7 @@ public interface VinculoCasoMapper {
     @Mapping(target = "cliente", ignore = true)
     @Mapping(target = "caso", ignore = true)
     @Mapping(target = "vinculo", ignore = true)
-    Vinculo_Caso
-    toEntity(VinculoCasoRequestDTO request);
+    Vinculo_Caso toEntity(VinculoCasoRequestDTO request);
 
-    List<VinculoResponseDTO> toResponseList(List<Vinculo_Caso> vinculoCasos);
+    List<VinculoCasoResponseDTO> toResponseList(List<Vinculo_Caso> vinculoCasos);
 }

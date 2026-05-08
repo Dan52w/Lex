@@ -23,6 +23,8 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
     @Query("SELECT a FROM Abogado a WHERE a.persona.cc = :cc AND a.persona.activo = true AND a.firma = :firmaId")
     Optional<Abogado> findByAbogadoActivobyCc(@Param("cc") String cc, @Param("firmaId") Integer firmaId);
 
+    Optional<Abogado> findByPersonaId(Integer personaId);
+
     // 3. Buscar por nombre completo dentro de una firma (Optimizado con JOIN FETCH)
     @Query("SELECT a FROM Abogado a " +
             "JOIN FETCH a.persona " +

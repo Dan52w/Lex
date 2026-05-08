@@ -123,6 +123,9 @@ public class AgendaServiceImpl implements AgentaService {
             oldAgenda.setAbogado(nuevoAbogado);
             oldAgenda.setCaso(nuevoCaso);
             oldAgenda.setTipo_Agenda(nuevoTipoAgenda);
+            oldAgenda.setDescripcion(request.descripcion());
+            oldAgenda.setFechaExp(request.fechaExp());
+            oldAgenda.setActiva(request.activa());
 
             return agendaMapper.toResponse(agendaRepository.save(oldAgenda));
         }).orElseThrow(() -> new EntityNotFoundException("No se encontro la Agenda: " + id));

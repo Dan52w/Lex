@@ -9,11 +9,12 @@ public interface CasoService {
 
     // Búsquedas seguras por persona
     List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona);
+    List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente);
     List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona);
     List<CasoResponseDTO> listarPorEstado(String estadoNombre, Integer idPersona);
     List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona);
     List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idPersona, Integer idEstado, Integer idSubtipo);
-
+    List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso);
     // Gestión
     CasoResponseDTO buscarPorId(Integer id);
     CasoResponseDTO actualizar(Integer id, CasoRequestDTO request);

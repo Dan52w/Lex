@@ -1,5 +1,6 @@
 package com.example.lexcloud.dto.request;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -11,7 +12,9 @@ public record AgendaRequestDTO(
         Integer idCaso,
         @NotNull(message = "Debe seleccionar que tipo de evento es")
         Integer idTipoAgenda,
-        @NotBlank(message = "Se debe seleccionar la fecha en la que será el evento")
+        Boolean activa,
+        @NotNull(message = "Se debe seleccionar la fecha")
+        @Future(message = "La fecha debe ser posterior a la actual")
         LocalDateTime fechaExp,
         String descripcion
 ) {}

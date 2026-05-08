@@ -1,9 +1,12 @@
 package com.example.lexcloud.service.impl;
 
 import com.example.lexcloud.service.FileStorageService;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -15,53 +18,70 @@ import java.nio.file.Paths;
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
-    // 1. Definimos la raíz base del proyecto.
-    // Todos los archivos vivirán dentro de esta carpeta.
-    private final Path root = Paths.get("uploads/documentos");
+    private final String SUPABASE_URL = "https://xjjlfqkobikvezkpaqnl.supabase.co/storage/v1/object/documentos/";
+    private final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqamxmcWtvYmlrdmV6a3BhcW5sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE2MDQyMywiZXhwIjoyMDkzNzM2NDIzfQ.30lZtylOpiuFh1pOPT57Xs64_XAd7faXl70epyc91cg";
 
     @Override
     public String guardarArchivo(MultipartFile archivo, String nombreCarpeta) {
         try {
-            // 2. Creamos la ruta física completa para guardar: uploads/documentos/firma_123
-            Path rutaFirma = this.root.resolve(nombreCarpeta);
-
-            if (!Files.exists(rutaFirma)) {
-                Files.createDirectories(rutaFirma);
-            }
-
-            // 3. Generamos el nombre único del archivo
+            // 1. Generamos el nombre del archivo
             String nombreArchivo = System.currentTimeMillis() + "_" + archivo.getOriginalFilename();
 
-            // 4. Guardamos físicamente en el disco
-            Files.copy(archivo.getInputStream(), rutaFirma.resolve(nombreArchivo));
+            // 2. Definimos la RUTA VIRTUAL: "firma_123/archivo.pdf"
+            // Al enviarlo así, Supabase entiende que debe crear la "carpeta" firma_123
+            String rutaVirtual = nombreCarpeta + "/" + nombreArchivo;
+            String urlFinal = SUPABASE_URL + rutaVirtual;
 
-            // 5. RETORNAMOS SOLO LA PARTE RELATIVA
-            // En la BD se guardará: "firma_123/1712415_doc.pdf"
-            // Usamos "/" explícitamente para que sea compatible entre Windows y Linux
-            return nombreCarpeta + "/" + nombreArchivo;
+            // 3. Preparamos la petición HTTP
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + SUPABASE_KEY);
+            headers.set("apikey", SUPABASE_KEY.trim());
+            headers.setContentType(MediaType.parseMediaType(archivo.getContentType()));
 
-        } catch (IOException e) {
-            throw new RuntimeException("Error al guardar archivo: " + e.getMessage());
+            HttpEntity<byte[]> entity = new HttpEntity<>(archivo.getBytes(), headers);
+
+            // 4. Enviamos el archivo a Supabase
+            restTemplate.exchange(urlFinal, HttpMethod.POST, entity, String.class);
+
+            // 5. Retornamos la ruta que guardaremos en la BD (igual que antes)
+            return rutaVirtual;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error al subir a Supabase: " + e.getMessage());
         }
     }
 
     @Override
     public Resource cargarArchivo(String rutaRelativa) {
         try {
-            // 6. Al cargar, unimos la raíz con la ruta relativa de la BD
-            // root (uploads/documentos) + rutaRelativa (firma_123/doc.pdf)
-            Path archivoPath = root.resolve(rutaRelativa).normalize();
+            String urlDescarga = SUPABASE_URL + rutaRelativa;
 
-            Resource recurso = new UrlResource(archivoPath.toUri());
+            // Necesitamos descargar el archivo con los headers de seguridad
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + SUPABASE_KEY.trim());
+            headers.set("apikey", SUPABASE_KEY.trim());
 
-            if (recurso.exists() || recurso.isReadable()) {
-                return recurso;
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            // Obtenemos los bytes del archivo
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                    urlDescarga,
+                    HttpMethod.GET,
+                    entity,
+                    byte[].class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                // Devolvemos el contenido como un recurso en memoria
+                return new ByteArrayResource(response.getBody());
             } else {
-                // Si falla, lanzamos la ruta absoluta para depurar en consola
-                throw new RuntimeException("No existe el archivo en: " + archivoPath.toAbsolutePath());
+                throw new RuntimeException("No se pudo obtener el archivo de Supabase: " + response.getStatusCode());
             }
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("URL mal formada: " + e.getMessage());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error al recuperar archivo de Supabase: " + e.getMessage());
         }
     }
 }

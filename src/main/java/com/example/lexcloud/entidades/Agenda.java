@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "agendas")
@@ -18,7 +19,7 @@ public class Agenda {
     @Column(name = "descripcion", nullable = false, length = Integer.MAX_VALUE)
     private String descripcion;
     @Column(name = "fecha_exp", nullable = false)
-    private LocalDate fechaExp;
+    private LocalDateTime fechaExp;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_abogado", nullable = false)
@@ -56,11 +57,11 @@ public class Agenda {
         this.descripcion = descripcion;
     }
 
-    public LocalDate getFechaExp() {
+    public LocalDateTime getFechaExp() {
         return fechaExp;
     }
 
-    public void setFechaExp(LocalDate fechaExp) {
+    public void setFechaExp(LocalDateTime fechaExp) {
         this.fechaExp = fechaExp;
     }
 

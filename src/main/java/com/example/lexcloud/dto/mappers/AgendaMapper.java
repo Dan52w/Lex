@@ -12,7 +12,9 @@ import java.util.List;
 public interface AgendaMapper {
 
     @Mapping(source = "tipo_Agenda.nombre", target = "tipoAgenda")
+    @Mapping(source = "tipo_Agenda.id", target = "idTipoAgenda")
     @Mapping(source = "caso.titulo",  target = "nombreCaso")
+    @Mapping(source = "caso.id", target = "idCaso")
     AgendaResponseDTO toResponse(Agenda agenda);
 
     @Mapping(target = "id", ignore = true)

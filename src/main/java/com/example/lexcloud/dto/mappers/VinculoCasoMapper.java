@@ -15,6 +15,7 @@ public interface VinculoCasoMapper {
     @Mapping(source = "cliente.id", target = "idCliente")
     @Mapping(source = "cliente.nombre", target = "nombreCliente")
     @Mapping(source = "caso.id", target = "idCaso")
+    @Mapping(source = "cliente.cc", target = "ccCliente")
     @Mapping(source = "caso.titulo", target = "tituloCaso")
     @Mapping(source = "vinculo.id", target = "idVinculo")
     @Mapping(source = "vinculo.nombre", target = "nombreVinculo")

@@ -38,6 +38,16 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(idPersona));
     }
 
+    @GetMapping("/cliente/{idPersona}/{idCliente}")
+    public ResponseEntity<List<CasoResponseDTO>> listarPorCliente(@PathVariable Integer idPersona, @PathVariable Integer idCliente) {
+        return ResponseEntity.ok(casoService.listarCasosAutorizadosPorAbogadoYCliente(idPersona, idCliente));
+    }
+
+    @GetMapping("/padre/{idCaso}")
+    public ResponseEntity<List<CasoResponseDTO>> listarPorCasoPadre(@PathVariable Integer idCaso){
+        return ResponseEntity.ok(casoService.listarPorCasoPadre(idCaso));
+    }
+
     // 4. Buscar por título (parcial) y persona
     // Ejemplo: /api/casos/buscar/titulo?idPersona=5&query=demanda
     @GetMapping("/buscar/titulo")

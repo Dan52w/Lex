@@ -25,13 +25,15 @@ public interface VinculoCaso_Repository extends JpaRepository<Vinculo_Caso, Inte
 
     // 4. Listar todos los casos donde una persona está vinculada
     // (Ideal para el "Mis Casos" del panel del abogado)
-    List<Vinculo_Caso> findByPersonaFirmaAndAutorizadoTrue(Integer personaId);
+    List<Vinculo_Caso> findByPersonaFirma_IdAndAutorizadoTrue(Integer personaId);
 
     // 5. Buscar quién es el abogado principal de un caso
     // Asumiendo que el nombre del vínculo es 'Principal'
     @Query("SELECT vc FROM Vinculo_Caso vc WHERE vc.caso.id = :casoId " +
             "AND vc.vinculo.nombre = 'Principal' AND vc.autorizado = true")
     Optional<Vinculo_Caso> findAbogadoPrincipalDelCaso(@Param("casoId") Integer casoId);
+
+    Optional<Vinculo_Caso> findByCasoId(Integer idCaso);
 
     // 6. Listar vínculos pendientes de autorización
     // Útil para un administrador que debe aprobar quién accede a qué información

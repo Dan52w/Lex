@@ -50,7 +50,9 @@ public class SubtipoCasoServiceImpl implements SubtipoCasoService {
     @Transactional(readOnly = true)
     public List<SubtipoCasoResponseDTO> listarTodo() {
         List<Subtipo_Caso> subtipoCasos = subtipoRepository.findAll();
-        return subtipoCasoMapper.toResponseList(subtipoCasos);
+        return subtipoCasoMapper.toResponseList(subtipoCasos).stream()
+                .filter(dto -> dto.id() != 1)
+                .toList();
     }
 
     @Override
@@ -58,7 +60,9 @@ public class SubtipoCasoServiceImpl implements SubtipoCasoService {
     public List<SubtipoCasoResponseDTO> listarPorTipo(Integer idTipoCaso) {
         List<Subtipo_Caso> subtipoCasos = subtipoRepository.findByTipoCasoId(idTipoCaso);
 
-        return subtipoCasoMapper.toResponseList(subtipoCasos);
+        return subtipoCasoMapper.toResponseList(subtipoCasos).stream()
+                .filter(dto -> dto.id() != 1)
+                .toList();
     }
 
     @Override

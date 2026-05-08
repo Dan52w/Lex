@@ -20,6 +20,16 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND c.activo = true")
     List<Caso> findCasosAutorizadosPorPersona(@Param("personaId") Integer personaId);
 
+    @Query("SELECT c FROM Caso c " +
+            "JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
+            "WHERE vc.personaFirma.id = :personaIdFirma " + // ID del Abogado
+            "AND vc.cliente.id = :personaIdCliente " +      // ID del Cliente
+            "AND vc.autorizado = true " +                   // Vínculo validado
+            "AND c.activo = true")                          // Caso no eliminado
+    List<Caso> findCasosAutorizadosPorAbogadoYCliente(
+            @Param("personaIdFirma") Integer personaIdFirma,
+            @Param("personaIdCliente") Integer personaIdCliente);
+
     @Query("SELECT c FROM Caso c JOIN Vinculo_Caso vc ON vc.caso.id = c.id " +
             "WHERE vc.personaFirma.id = :personaId AND LOWER(c.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))")
     List<Caso> buscarPorTituloParcial(@Param("titulo") String titulo, @Param("personaId") Integer personaId);

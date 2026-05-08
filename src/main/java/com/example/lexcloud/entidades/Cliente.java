@@ -1,6 +1,7 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
@@ -19,6 +20,8 @@ public class Cliente {
     @ColumnDefault("true")
     @Column(name = "activo")
     private Boolean activo;
+    @Column(name = "correo")
+    private String correo;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_persona", nullable = false)
@@ -27,6 +30,11 @@ public class Cliente {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_firma", nullable = false)
     private Firma firma;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_tipo_cliente", nullable = false)
+    private Tipo_Cliente tipoCliente;
 
     public Integer getId() {
         return id;
@@ -66,5 +74,21 @@ public class Cliente {
 
     public void setFirma(Firma firma) {
         this.firma = firma;
+    }
+
+    public Tipo_Cliente getTipoCliente() {
+        return tipoCliente;
+    }
+
+    public void setTipoCliente(Tipo_Cliente tipoCliente) {
+        this.tipoCliente = tipoCliente;
+    }
+
+    public String getCorreo() {
+        return correo;
+    }
+
+    public void setCorreo(String correo) {
+        this.correo = correo;
     }
 }

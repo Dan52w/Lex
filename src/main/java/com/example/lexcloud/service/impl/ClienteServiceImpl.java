@@ -6,10 +6,7 @@ import com.example.lexcloud.dto.response.ClienteResponseDTO;
 import com.example.lexcloud.entidades.Cliente;
 import com.example.lexcloud.entidades.Persona;
 import com.example.lexcloud.entidades.Rol;
-import com.example.lexcloud.repositorios.Cliente_Repository;
-import com.example.lexcloud.repositorios.Firma_Repository;
-import com.example.lexcloud.repositorios.Persona_Repository;
-import com.example.lexcloud.repositorios.Rol_Repository;
+import com.example.lexcloud.repositorios.*;
 import com.example.lexcloud.service.ClienteService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -26,17 +23,20 @@ public class ClienteServiceImpl implements ClienteService {
     private final Persona_Repository personaRepository;
     private final Firma_Repository firmaRepository;
     private final Rol_Repository rolRepository;
+    private final TipoCliente_Repository tipoClienteRepository;
     private final ClienteMapper clienteMapper;
 
     public ClienteServiceImpl(Cliente_Repository clienteRepository,
                               Persona_Repository personaRepository,
                               Firma_Repository firmaRepository,
                               Rol_Repository rolRepository,
+                              TipoCliente_Repository tipoClienteRepository,
                               ClienteMapper clienteMapper) {
         this.clienteRepository = clienteRepository;
         this.personaRepository = personaRepository;
         this.firmaRepository = firmaRepository;
         this.rolRepository = rolRepository;
+        this.tipoClienteRepository = tipoClienteRepository;
         this.clienteMapper = clienteMapper;
     }
 
@@ -74,10 +74,13 @@ public class ClienteServiceImpl implements ClienteService {
         nuevoCliente.setPersona(personaExistente);
         nuevoCliente.setFirma(firmaRepository.findById(request.idFirma())
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
+        nuevoCliente.setTipoCliente(tipoClienteRepository.findById(request.idTipoCliente())
+                .orElseThrow(() -> new EntityNotFoundException("Tipo Cliente no encontrado")));
 
         // El mapper o el constructor pueden manejar el resto (activo, fecha_vinculacion)
         nuevoCliente.setActivo(true);
         nuevoCliente.setFechaVinculacion(LocalDate.now());
+        nuevoCliente.setCorreo(request.correo());
 
         return clienteMapper.toResponse(clienteRepository.save(nuevoCliente));
     }
@@ -121,6 +124,7 @@ public class ClienteServiceImpl implements ClienteService {
             p.setFechaNacimiento(request.fechaNacimiento());
 
             personaRepository.save(p);
+            oldCliente.setCorreo(request.correo());
 
             return clienteMapper.toResponse(clienteRepository.save(oldCliente));
         }).orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));

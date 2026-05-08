@@ -36,12 +36,16 @@ public class TipoCasoServiceImpl implements TipoCasoService {
 
     @Override
     public List<TipoCasoResponseDTO> listarTodo() {
-        return tipoCasoMapper.toResponseList(tipoCasoRepository.findAll());
+        return tipoCasoMapper.toResponseList(tipoCasoRepository.findAll()).stream()
+                .filter(dto -> dto.id() != 1)
+                .toList();
     }
 
     @Override
     public List<TipoCasoResponseDTO> listarPorNombre(String nombre) {
-        return tipoCasoMapper.toResponseList(tipoCasoRepository.findAllByNombre(nombre));
+        return tipoCasoMapper.toResponseList(tipoCasoRepository.findAllByNombre(nombre)).stream()
+                .filter(dto -> dto.id() != 1)
+                .toList();
     }
 
     @Override

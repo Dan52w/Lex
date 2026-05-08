@@ -13,6 +13,7 @@ public interface AbogadoService {
     List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad);
     List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre);
     Optional<AbogadoResponseDTO> buscarPorCc(String cc, Integer idFirma);
+    Optional<AbogadoResponseDTO> buscarPorPersonaId(Integer id);
     AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request);
     void desactivarAbogado(Integer id);
 }

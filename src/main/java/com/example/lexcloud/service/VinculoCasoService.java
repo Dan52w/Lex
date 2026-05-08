@@ -12,6 +12,7 @@ public interface VinculoCasoService {
     List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona);
     List<VinculoCasoResponseDTO> listarPendientesAutorizacion();
     Optional<VinculoCasoResponseDTO> obtenerAbogadoPrincipal(Integer idCaso);
+    Optional<VinculoCasoResponseDTO> obtenerCliente(Integer idCaso);
     void autorizarAcceso(Integer idVinculoCaso);
     void eliminarVinculo(Integer id);
 

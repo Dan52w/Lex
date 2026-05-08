@@ -15,8 +15,11 @@ public interface AbogadoMapper {
     @Mapping(target = "nombrePersona",
             expression = "java(abogado.getPersona().getNombre() + \" \" + abogado.getPersona().getApellido())")
     @Mapping(source = "persona.cc", target = "cedula") // Útil para mostrar en tablas
+    @Mapping(source = "persona.id", target = "idPersona")
+    @Mapping(source = "firma.id", target = "idFirma")
     @Mapping(source = "firma.nombre", target = "nombreFirma")
     @Mapping(source = "tipo_Abogado.nombre", target = "tipoAbogado")
+    @Mapping(source = "persona.telefono", target = "telefono")
     AbogadoResponseDTO toResponse(Abogado abogado);
 
     // Mapeo de Entrada (Desde el Formulario)

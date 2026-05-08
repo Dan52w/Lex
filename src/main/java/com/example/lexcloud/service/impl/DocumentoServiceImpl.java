@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,22 +36,29 @@ public class DocumentoServiceImpl implements DocumentoService {
     }
 
     @Override
-    public DocumentoResponseDTO guardar(DocumentoRequestDTO request, String direccionArchivo) {
-        // 1. Mapeo inicial
+    @Transactional
+    public DocumentoResponseDTO guardar(DocumentoRequestDTO request, String direccionArchivo, long pesoEnBytes) {
+        // 1. Mapeo inicial de los datos básicos del DTO a la Entidad
         Documento documento = documentoMapper.toEntity(request);
 
-        // 2. Establecer la dirección física/lógica del archivo
+        // 2. Establecer metadatos técnicos del archivo
         documento.setDireccion(direccionArchivo);
+        documento.setTamanio(pesoEnBytes); // El campo que definimos como BIGINT
 
         // 3. Vincular con el Caso
+        // Usamos findById para asegurar que el caso existe antes de intentar guardar
         documento.setCaso(casoRepository.findById(request.idCaso())
-                .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado")));
+                .orElseThrow(() -> new EntityNotFoundException("No se puede subir el documento: Caso no encontrado con ID: " + request.idCaso())));
 
-        // 4. Vincular con el Tipo de Documento
+        // 4. Vincular con el Tipo de Documento (Poder, Demanda, Prueba, etc.)
         documento.setTipo_Documento(tipoDocumentoRepository.findById(request.idTipoDocumento())
-                .orElseThrow(() -> new EntityNotFoundException("Tipo de documento no encontrado")));
+                .orElseThrow(() -> new EntityNotFoundException("Tipo de documento no válido")));
 
-        return documentoMapper.toResponse(documentoRepository.save(documento));
+        // 6. Persistencia
+        Documento documentoGuardado = documentoRepository.save(documento);
+
+        // 7. Retornar la respuesta mapeada
+        return documentoMapper.toResponse(documentoGuardado);
     }
 
     @Override

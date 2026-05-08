@@ -71,7 +71,7 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
     @Override
     @Transactional(readOnly = true)
     public List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona) {
-        return vinculoCasoMapper.toResponseList(vinculoCasoRepository.findByPersonaFirmaAndAutorizadoTrue(idPersona));
+        return vinculoCasoMapper.toResponseList(vinculoCasoRepository.findByPersonaFirma_IdAndAutorizadoTrue(idPersona));
     }
 
     @Override
@@ -84,6 +84,13 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
     @Transactional(readOnly = true)
     public Optional<VinculoCasoResponseDTO> obtenerAbogadoPrincipal(Integer idCaso) {
         return vinculoCasoRepository.findAbogadoPrincipalDelCaso(idCaso)
+                .map(vinculoCasoMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<VinculoCasoResponseDTO> obtenerCliente(Integer idCaso) {
+        return vinculoCasoRepository.findByCasoId(idCaso)
                 .map(vinculoCasoMapper::toResponse);
     }
 

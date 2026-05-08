@@ -56,6 +56,13 @@ public class AbogadoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/persona/{idPersona}")
+    public ResponseEntity<AbogadoResponseDTO> buscarPorPersonaId(@PathVariable Integer idPersona) {
+        return abogadoService.buscarPorPersonaId(idPersona)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // 4. Actualizar
     @PutMapping("/{id}")
     public ResponseEntity<AbogadoResponseDTO> actualizar(@PathVariable Integer id, @Valid @RequestBody AbogadoRequestDTO request) {

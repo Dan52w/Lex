@@ -15,6 +15,8 @@ public class Documento {
     private String descripcion;
     @Column(name = "direccion", nullable = false, length = Integer.MAX_VALUE)
     private String direccion;
+    @Column(name = "tamanio", nullable = false)
+    private Long tamanio;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_caso", nullable = false)
@@ -70,5 +72,13 @@ public class Documento {
 
     public void setTipo_Documento(Tipo_Documento tipo_Documento) {
         this.tipo_Documento = tipo_Documento;
+    }
+
+    public Long getTamanio() {
+        return tamanio;
+    }
+
+    public void setTamanio(Long tamanio) {
+        this.tamanio = tamanio;
     }
 }

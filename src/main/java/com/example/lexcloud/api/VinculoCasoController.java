@@ -47,6 +47,13 @@ public class VinculoCasoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/cliente/{idCaso}")
+    public ResponseEntity<VinculoCasoResponseDTO> obtenerCliente(@PathVariable Integer idCaso) {
+        return vinculoCasoService.obtenerCliente(idCaso)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PatchMapping("/{id}/autorizar")
     public ResponseEntity<Void> autorizarAcceso(@PathVariable Integer id) {
         vinculoCasoService.autorizarAcceso(id);

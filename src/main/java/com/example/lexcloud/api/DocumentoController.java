@@ -31,19 +31,27 @@ public class DocumentoController {
             @RequestPart("datos") @Valid DocumentoRequestDTO request,
             @RequestPart("archivo") MultipartFile archivo) {
 
-        // Validación preventiva
+        // 1. Validaciones preventivas
+        if (archivo.isEmpty()) {
+            throw new IllegalArgumentException("No se puede subir un archivo vacío.");
+        }
+
         if (request.nitFirma() == null || request.nitFirma().isBlank()) {
             throw new IllegalArgumentException("El NIT de la firma es obligatorio para organizar el archivo.");
         }
 
-        // Estructura limpia: firma_123456789
+        // 2. Metadatos del archivo
         String carpeta = "firma_" + request.nitFirma().trim();
+        long pesoEnBytes = archivo.getSize(); // Capturamos el tamaño aquí
 
-        // Guardamos físicamente
+        // 3. Guardado físico (File System o Cloud)
+        // El FileStorageService debería devolver la ruta donde quedó el archivo
         String rutaRelativa = fileStorageService.guardarArchivo(archivo, carpeta);
 
-        // Guardamos en Base de Datos
-        return new ResponseEntity<>(documentoService.guardar(request, rutaRelativa), HttpStatus.CREATED);
+        // 4. Guardado en Base de Datos (Pasamos el peso obtenido)
+        DocumentoResponseDTO response = documentoService.guardar(request, rutaRelativa, pesoEnBytes);
+
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")

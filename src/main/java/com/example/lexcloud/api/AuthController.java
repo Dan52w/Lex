@@ -6,6 +6,8 @@ import com.example.lexcloud.dto.response.AuthResponseDTO;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,29 +33,39 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequest) {
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequest, HttpServletResponse response) {
 
-        // Autenticación (Spring Security hace la magia con UserDetailsServiceImpl)
+        // 1. Autenticación
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.correo(), loginRequest.password()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Generar Token
+        // 2. Generar Token JWT
         String jwt = jwtUtil.generateJwtToken(authentication);
 
-        // Obtener datos del usuario autenticado para el DTO
+        // 3. Crear y configurar la Cookie HttpOnly
+        Cookie jwtCookie = new Cookie("jwt_token", jwt);
+        jwtCookie.setHttpOnly(true);   // Bloquea acceso desde JS (Protección XSS)
+        jwtCookie.setSecure(false);    // Cambiar a TRUE en producción con HTTPS
+        jwtCookie.setPath("/");        // Disponible para todas las rutas del back
+        jwtCookie.setMaxAge(24 * 60 * 60); // Expira en 1 día (ajustar según jwtUtil)
+
+        // Agregar la cookie a la respuesta de la cabecera
+        response.addCookie(jwtCookie);
+
+        // 4. Obtener datos del usuario
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // Aquí asumo que tu UserDetailsImpl tiene acceso a estos campos de la Persona
+        // Enviamos los datos del usuario en el body, pero el JWT viaja en la Cookie
         return ResponseEntity.ok(new AuthResponseDTO(
-                jwt,
+                "Cookie set successfully", // Mensaje informativo en lugar del token real
                 userDetails.getId(),
-                userDetails.getNombreCompleto(), // Tendrías que añadir esto a UserDetailsImpl
+                userDetails.getNombreCompleto(),
                 userDetails.getUsername(),
-                userDetails.getCc(),             // Tendrías que añadir esto a UserDetailsImpl
-                userDetails.getNombreRol(),            // Tendrías que añadir esto a UserDetailsImpl
-                true                             // Si llegó aquí, es porque está activo
+                userDetails.getCc(),
+                userDetails.getNombreRol(),
+                true
         ));
     }
 
@@ -61,5 +73,18 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequestDTO registerRequest) {
         authService.registrar(registerRequest);
         return ResponseEntity.ok("Usuario registrado exitosamente");
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        // Para cerrar sesión, enviamos la misma cookie con tiempo de vida 0
+        Cookie jwtCookie = new Cookie("jwt_token", null);
+        jwtCookie.setPath("/");
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setMaxAge(0);
+
+        response.addCookie(jwtCookie);
+
+        return ResponseEntity.ok("Sesión cerrada correctamente");
     }
 }

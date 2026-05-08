@@ -96,6 +96,12 @@ public class AbogadoServiceImpl implements AbogadoService {
     }
 
     @Override
+    public Optional<AbogadoResponseDTO> buscarPorPersonaId(Integer id) {
+        return  abogadoRepository.findByPersonaId(id)
+                .map(abogadoMapper::toResponse);
+    }
+
+    @Override
     public AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request){
         return abogadoRepository.findById(id).map(oldAbogado -> {
             // 1. Buscamos las nuevas entidades relacionadas por su ID

@@ -24,6 +24,7 @@ public class CasoServiceImpl implements CasoService {
     private final Persona_Repository personaRepository;
     private final VinculoCaso_Repository vinculoCasoRepository;
     private final Vinculo_Repository vinculoRepository;
+    private final Cliente_Repository clienteRepository;
     private final HistorialCambio_Repository historialCambioRepository;
     private final CasoMapper casoMapper;
 
@@ -34,6 +35,7 @@ public class CasoServiceImpl implements CasoService {
                            VinculoCaso_Repository vinculoCasoRepository,
                            HistorialCambio_Repository historialCambioRepository,
                            Vinculo_Repository vinculoRepository,
+                           Cliente_Repository clienteRepository,
                            CasoMapper casoMapper) {
         this.casoRepository = casoRepository;
         this.estadoRepository = estadoRepository;
@@ -42,6 +44,7 @@ public class CasoServiceImpl implements CasoService {
         this.vinculoCasoRepository = vinculoCasoRepository;
         this.historialCambioRepository = historialCambioRepository;
         this.vinculoRepository = vinculoRepository;
+        this.clienteRepository = clienteRepository;
         this.casoMapper = casoMapper;
     }
 
@@ -65,16 +68,17 @@ public class CasoServiceImpl implements CasoService {
 
         Caso casoGuardado = casoRepository.save(caso);
 
+        Cliente cliente = clienteRepository.getReferenceById(request.idCliente());
+
         // 3. Vínculo automático para el Abogado/Persona que crea y para el Cliente
-        crearVinculo(casoGuardado, request.idPersonaCreador(), request.idCliente(), true);
+        crearVinculo(casoGuardado, request.idPersonaCreador(), cliente.getPersona(), true);
 
         return casoMapper.toResponse(casoGuardado);
     }
 
-    private void crearVinculo(Caso caso, Integer idPersona, Integer idCliente, boolean autorizado) {
+    private void crearVinculo(Caso caso, Integer idPersona, Persona cliente, boolean autorizado) {
         // getReferenceById no hace SELECT, solo prepara la referencia para el INSERT
         Persona persona = personaRepository.getReferenceById(idPersona);
-        Persona cliente = personaRepository.getReferenceById(idCliente);
         Vinculo tipoVinculo = vinculoRepository.getReferenceById(2);
 
         Vinculo_Caso vinculoCaso = new Vinculo_Caso();
@@ -92,6 +96,14 @@ public class CasoServiceImpl implements CasoService {
         // El repositorio ya filtra por c.activo = true y vc.autorizado = true
         // Solo añadimos un filtro extra por si el ID 1 se coló en los vínculos
         return casoRepository.findCasosAutorizadosPorPersona(idPersona).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente) {
+        return casoRepository.findCasosAutorizadosPorAbogadoYCliente(idPersonaFirma, idCliente).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -130,6 +142,14 @@ public class CasoServiceImpl implements CasoService {
     }
 
     @Override
+    public List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso) {
+        return casoRepository.findByCasoPadreId(idCaso).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public CasoResponseDTO buscarPorId(Integer id) {
         // REGLA DE ORO: El usuario no puede consultar el ID 1 directamente
         if (id == 1) {
@@ -151,30 +171,33 @@ public class CasoServiceImpl implements CasoService {
         return casoRepository.findById(id).map(oldCaso -> {
             // 2. Capturamos el estado anterior para el historial
             String estadoAnterior = (oldCaso.getEstado() != null) ? oldCaso.getEstado().getNombre() : "Sin estado";
-
+            String subtipoCasoAnterior = (oldCaso.getSubtipo_Caso() != null) ? oldCaso.getSubtipo_Caso().getNombre() : "Sin definir";
+            String nombreCasoAnterior = (oldCaso.getTitulo() != null) ? oldCaso.getTitulo() : "Sin titulo";
             // 3. Actualizamos datos básicos
             oldCaso.setTitulo(request.titulo());
             oldCaso.setDescripcion(request.descripcion());
             oldCaso.setEstado(estadoRepository.findById(request.idEstado())
                     .orElseThrow(() -> new EntityNotFoundException("Estado no encontrado")));
+            oldCaso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
+                    .orElseThrow(() -> new EntityNotFoundException("Especialidad no encontrada")));
 
             // 5. Lógica de Caso Padre (Si es null, se asigna al ID 1 automáticamente)
-            Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
+            //Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
 
             // Validación de seguridad: Evitar bucle infinito
-            if (id.equals(idPadreEfectivo)) {
+            /*if (id.equals(idPadreEfectivo)) {
                 throw new IllegalArgumentException("Un caso no puede ser su propio padre");
-            }
+            }*/
 
-            Caso padre = casoRepository.findById(idPadreEfectivo)
-                    .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
-            oldCaso.setCasoPadre(padre);
+            //Caso padre = casoRepository.findById(idPadreEfectivo)
+            //        .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
+            //oldCaso.setCasoPadre(padre);
 
             Caso casoActualizado = casoRepository.save(oldCaso);
 
             // 7. Registro automático en el historial
             registrarCambioEnHistorial(casoActualizado, request.idPersonaCreador(),
-                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Nuevo padre ID: " + idPadreEfectivo);
+                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Especialidad anterior: " + subtipoCasoAnterior + ". Titulo anteriro: " + nombreCasoAnterior);
             return casoMapper.toResponse(casoActualizado);
 
         }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));

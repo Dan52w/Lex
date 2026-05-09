@@ -66,7 +66,7 @@ public class WebSecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:3000")); // Ajusta esto según tu frontend
+                    config.setAllowedOrigins(List.of("http://localhost:3000", "https://lex-cloud.vercel.app/")); // Ajusta esto según tu frontend
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     config.setAllowCredentials(true);
                     config.setAllowedHeaders(List.of("Authorization", "Content-Type"));

@@ -44,22 +44,24 @@ public class AuthController {
         // 2. Generar Token JWT
         String jwt = jwtUtil.generateJwtToken(authentication);
 
-        // 3. Crear y configurar la Cookie HttpOnly
-        Cookie jwtCookie = new Cookie("jwt_token", jwt);
-        jwtCookie.setHttpOnly(true);   // Bloquea acceso desde JS (Protección XSS)
-        jwtCookie.setSecure(false);    // Cambiar a TRUE en producción con HTTPS
-        jwtCookie.setPath("/");        // Disponible para todas las rutas del back
-        jwtCookie.setMaxAge(24 * 60 * 60); // Expira en 1 día (ajustar según jwtUtil)
+        // 3. Configuración de la Cookie (Compatible con Cross-Domain)
+        // Usamos ResponseCookie (de Spring) en lugar de Cookie (Servlet) para tener más control
+        org.springframework.http.ResponseCookie resCookie = org.springframework.http.ResponseCookie.from("jwt_token", jwt)
+                .httpOnly(true)
+                .secure(true)    // OBLIGATORIO para SameSite=None
+                .sameSite("None") // Permite que la cookie viaje de Render a Localhost
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .build();
 
-        // Agregar la cookie a la respuesta de la cabecera
-        response.addCookie(jwtCookie);
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, resCookie.toString());
 
         // 4. Obtener datos del usuario
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // Enviamos los datos del usuario en el body, pero el JWT viaja en la Cookie
+        // CAMBIO CRÍTICO: Enviamos 'jwt' en lugar del mensaje de texto
         return ResponseEntity.ok(new AuthResponseDTO(
-                "Cookie set successfully", // Mensaje informativo en lugar del token real
+                jwt, // <--- Enviamos el token real aquí
                 userDetails.getId(),
                 userDetails.getNombreCompleto(),
                 userDetails.getUsername(),

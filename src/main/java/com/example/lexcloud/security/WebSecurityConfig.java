@@ -6,7 +6,6 @@ import com.example.lexcloud.security.jwt.AuthTokenFilter;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -38,7 +37,7 @@ public class WebSecurityConfig {
 
     // Pasamos el servicio como parámetro del Bean para que Spring lo resuelva directamente
     @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter(@Lazy UserDetailsService userDetailsService) {
+    public AuthTokenFilter authenticationJwtTokenFilter(UserDetailsService userDetailsService) {
         return new AuthTokenFilter(jwtUtil, userDetailsService);
     }
 

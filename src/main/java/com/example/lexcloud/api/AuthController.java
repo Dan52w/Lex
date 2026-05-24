@@ -6,9 +6,10 @@ import com.example.lexcloud.dto.response.AuthResponseDTO;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,35 +34,37 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequest, HttpServletResponse response) {
+    public ResponseEntity<AuthResponseDTO> login(
+            @Valid @RequestBody LoginRequestDTO loginRequest,
+            HttpServletResponse response) {
 
-        // 1. Autenticación
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.correo(), loginRequest.password()));
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.correo(), loginRequest.password()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 2. Generar Token JWT
         String jwt = jwtUtil.generateJwtToken(authentication);
 
-        // 3. Configuración de la Cookie (Compatible con Cross-Domain)
-        // Usamos ResponseCookie (de Spring) en lugar de Cookie (Servlet) para tener más control
-        org.springframework.http.ResponseCookie resCookie = org.springframework.http.ResponseCookie.from("jwt_token", jwt)
+        // CAMBIO CLAVE: SameSite=None es indispensable para peticiones
+        // cross-origin (frontend en Vercel → backend en Render).
+        // Sin "None", el navegador descarta la cookie en peticiones cross-site
+        // y el AuthTokenFilter nunca la recibe, forzando re-login.
+        // Secure=true es obligatorio cuando SameSite=None.
+        ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", jwt)
                 .httpOnly(true)
-                .secure(true)    // OBLIGATORIO para SameSite=None
-                .sameSite("None") // Permite que la cookie viaje de Render a Localhost
+                .secure(true)          // SIEMPRE true con SameSite=None
+                .sameSite("None")      // Necesario para cross-domain
                 .path("/")
-                .maxAge(24 * 60 * 60)
+                .maxAge(24 * 60 * 60)  // 24 horas
                 .build();
 
-        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, resCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, jwtCookie.toString());
 
-        // 4. Obtener datos del usuario
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // CAMBIO CRÍTICO: Enviamos 'jwt' en lugar del mensaje de texto
         return ResponseEntity.ok(new AuthResponseDTO(
-                jwt, // <--- Enviamos el token real aquí
+                jwt,
                 userDetails.getId(),
                 userDetails.getNombreCompleto(),
                 userDetails.getUsername(),
@@ -72,20 +75,26 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequestDTO registerRequest) {
+    public ResponseEntity<?> registerUser(
+            @Valid @RequestBody RegisterRequestDTO registerRequest) {
         authService.registrar(registerRequest);
         return ResponseEntity.ok("Usuario registrado exitosamente");
     }
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
-        // Para cerrar sesión, enviamos la misma cookie con tiempo de vida 0
-        Cookie jwtCookie = new Cookie("jwt_token", null);
-        jwtCookie.setPath("/");
-        jwtCookie.setHttpOnly(true);
-        jwtCookie.setMaxAge(0);
+        // Para invalidar la cookie el Set-Cookie debe usar exactamente los
+        // mismos atributos que cuando se creó (mismo path, same SameSite, etc.)
+        // de lo contrario el navegador no la encuentra para borrarla.
+        ResponseCookie expiredCookie = ResponseCookie.from("jwt_token", "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)  // maxAge=0 borra la cookie
+                .build();
 
-        response.addCookie(jwtCookie);
+        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
 
         return ResponseEntity.ok("Sesión cerrada correctamente");
     }

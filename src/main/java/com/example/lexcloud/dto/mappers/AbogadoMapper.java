@@ -20,6 +20,7 @@ public interface AbogadoMapper {
     @Mapping(source = "firma.nombre", target = "nombreFirma")
     @Mapping(source = "tipo_Abogado.nombre", target = "tipoAbogado")
     @Mapping(source = "persona.telefono", target = "telefono")
+    @Mapping(source = "persona.login.correo", target = "correo")
     AbogadoResponseDTO toResponse(Abogado abogado);
 
     // Mapeo de Entrada (Desde el Formulario)

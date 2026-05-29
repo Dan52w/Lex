@@ -19,9 +19,8 @@ RUN ./gradlew build -x test --no-daemon
 # Etapa 2: Imagen de ejecución con Java 25
 FROM eclipse-temurin:25-jdk-jammy
 WORKDIR /app
-
-# CORRECCIÓN: Filtrar para ignorar el archivo '-plain.jar'
-COPY --from=build /app/build/libs/*[!plain].jar app.jar
-
+# Copiamos el jar generado
+COPY --from=build /app/build/libs/*.jar app.jar
 EXPOSE 8080
+# Mantenemos el límite de memoria para Render
 ENTRYPOINT ["java", "-Xmx300m", "-jar", "app.jar"]

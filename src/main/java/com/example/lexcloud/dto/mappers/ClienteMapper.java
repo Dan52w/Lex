@@ -17,6 +17,7 @@ public interface ClienteMapper {
     @Mapping(source = "tipoCliente.nombre", target = "tipoCliente")
     @Mapping(source = "persona.telefono", target = "telefono")
     @Mapping(source = "persona.cc", target = "cc")
+    @Mapping(source = "persona.fechaNacimiento", target = "fechaNacimiento")
     ClienteResponseDTO toResponse(Cliente cliente);
 
     @Mapping(target = "id", ignore = true)

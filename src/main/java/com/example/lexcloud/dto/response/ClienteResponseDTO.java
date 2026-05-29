@@ -12,5 +12,6 @@ public record ClienteResponseDTO(Integer id,
                                  String tipoCliente,
                                  LocalDate fechaVinculacion,
                                  String correo,
+                                 LocalDate fechaNacimiento,
                                  boolean activo) {
 }

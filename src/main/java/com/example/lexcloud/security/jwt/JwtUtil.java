@@ -46,7 +46,9 @@ public class JwtUtil {
                     .parse(authToken);
             return true;
         } catch (Exception e) {
-            // Log de error opcional: logger.error("Token inválido: {}", e.getMessage());
+            //Necesitamos ver qué está fallando realmente en la consola de Railway
+            System.out.println("ERROR CRÍTICO EN EL FILTRO DE AUTENTICACIÓN: " + e.getMessage());
+            e.printStackTrace();
         }
         return false;
     }

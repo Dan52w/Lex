@@ -83,4 +83,35 @@ public class FileStorageServiceImpl implements FileStorageService {
             throw new RuntimeException("Error al recuperar archivo de Supabase: " + e.getMessage());
         }
     }
+
+    @Override
+    public void eliminarArchivo(String rutaRelativa) {
+        try {
+            // Limpiamos cualquier "/" extra al principio tal como en la descarga
+            String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
+            String urlEliminar = SUPABASE_URL + path;
+
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + SUPABASE_KEY.trim());
+            headers.set("apikey", SUPABASE_KEY.trim());
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            // Supabase requiere una petición DELETE para remover el objeto físico
+            ResponseEntity<String> response = restTemplate.exchange(
+                    urlEliminar,
+                    HttpMethod.DELETE,
+                    entity,
+                    String.class
+            );
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Supabase no pudo eliminar el archivo. Status: " + response.getStatusCode());
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error al eliminar el archivo físico en Supabase: " + e.getMessage());
+        }
+    }
 }

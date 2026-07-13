@@ -8,6 +8,7 @@ import com.example.lexcloud.repositorios.Caso_Repository;
 import com.example.lexcloud.repositorios.Documento_Repository;
 import com.example.lexcloud.repositorios.TipoDocumento_Repository;
 import com.example.lexcloud.service.DocumentoService;
+import com.example.lexcloud.service.FileStorageService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +25,18 @@ public class DocumentoServiceImpl implements DocumentoService {
     private final Caso_Repository casoRepository;
     private final TipoDocumento_Repository tipoDocumentoRepository;
     private final DocumentoMapper documentoMapper;
+    private final FileStorageService fileStorageService;
 
     public DocumentoServiceImpl(Documento_Repository documentoRepository,
                                 Caso_Repository casoRepository,
                                 TipoDocumento_Repository tipoDocumentoRepository,
-                                DocumentoMapper documentoMapper) {
+                                DocumentoMapper documentoMapper,
+                                FileStorageService fileStorageService) {
         this.documentoRepository = documentoRepository;
         this.casoRepository = casoRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.documentoMapper = documentoMapper;
+        this.fileStorageService  = fileStorageService;
     }
 
     @Override
@@ -79,9 +83,23 @@ public class DocumentoServiceImpl implements DocumentoService {
 
     @Override
     public void eliminar(Integer id) {
-        if (!documentoRepository.existsById(id)) {
-            throw new EntityNotFoundException("Documento no encontrado");
+        // 1. Buscar el documento (Lectura rápida)
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado"));
+
+        String rutaArchivo = documento.getDireccion();
+
+        // 2. Borrar de Supabase FUERA de una transacción pesada de escritura de BD
+        if (rutaArchivo != null && !rutaArchivo.isEmpty()) {
+            fileStorageService.eliminarArchivo(rutaArchivo);
         }
-        documentoRepository.deleteById(id);
+
+        // 3. Borrar de la base de datos (Esto sí es una operación transaccional pura y veloz)
+        borrarRegistroBD(documento);
+    }
+
+    @Transactional
+    public void borrarRegistroBD(Documento documento) {
+        documentoRepository.delete(documento);
     }
 }

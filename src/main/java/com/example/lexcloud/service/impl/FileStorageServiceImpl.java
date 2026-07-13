@@ -1,6 +1,7 @@
 package com.example.lexcloud.service.impl;
 
 import com.example.lexcloud.service.FileStorageService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
@@ -11,38 +12,35 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
-    // 1. Verifica que este ID coincida con tu proyecto actual de Supabase
-    // La estructura es: .../storage/v1/object/[NOMBRE_DEL_BUCKET]/
-    private final String SUPABASE_URL = "https://zcopsgolxkkytepcsghf.supabase.co/storage/v1/object/documentos/";
+    // Se inyectan de manera dinámica desde el application.properties
+    @Value("${supabase.storage.url}")
+    private String supabaseUrl;
 
-    // 2. Usa siempre la Service Role Key para operaciones de backend (la que ya tienes está bien)
-    private final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpjb3BzZ29seGtreXRlcGNzZ2hmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODMzODcxNywiZXhwIjoyMDkzOTE0NzE3fQ.QcLMP0u8C4pX3ET0gpsSVf-iNsWJxgx1J2jtrnfOW-4";
+    @Value("${supabase.storage.key}")
+    private String supabaseKey;
 
     @Override
     public String guardarArchivo(MultipartFile archivo, String nombreCarpeta) {
         try {
-            // Limpiamos el nombre del archivo para evitar caracteres raros
             String originalName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename().replace(" ", "_") : "archivo";
             String nombreArchivo = System.currentTimeMillis() + "_" + originalName;
 
             String rutaVirtual = nombreCarpeta + "/" + nombreArchivo;
-            String urlFinal = SUPABASE_URL + rutaVirtual;
+            String urlFinal = supabaseUrl + rutaVirtual; // Cambio a variable dinámica
 
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + SUPABASE_KEY.trim());
-            headers.set("apikey", SUPABASE_KEY.trim());
+            headers.set("Authorization", "Bearer " + supabaseKey.trim()); // Cambio a variable dinámica
+            headers.set("apikey", supabaseKey.trim());                    // Cambio a variable dinámica
 
-            // Es vital enviar el Content-Type correcto para que Supabase sepa qué es (PDF, PNG, etc.)
             headers.setContentType(MediaType.parseMediaType(archivo.getContentType()));
 
             HttpEntity<byte[]> entity = new HttpEntity<>(archivo.getBytes(), headers);
 
-            // Supabase usa POST para subir archivos nuevos
             ResponseEntity<String> response = restTemplate.exchange(urlFinal, HttpMethod.POST, entity, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                return rutaVirtual; // Guardamos "nombre_carpeta/archivo.pdf" en la base de datos
+                return rutaVirtual;
             } else {
                 throw new RuntimeException("Respuesta inesperada de Supabase: " + response.getStatusCode());
             }
@@ -55,14 +53,13 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public Resource cargarArchivo(String rutaRelativa) {
         try {
-            // Importante: Eliminar cualquier "/" extra al principio de la rutaRelativa
             String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
-            String urlDescarga = SUPABASE_URL + path;
+            String urlDescarga = supabaseUrl + path; // Cambio a variable dinámica
 
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + SUPABASE_KEY.trim());
-            headers.set("apikey", SUPABASE_KEY.trim());
+            headers.set("Authorization", "Bearer " + supabaseKey.trim()); // Cambio a variable dinámica
+            headers.set("apikey", supabaseKey.trim());                    // Cambio a variable dinámica
 
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
@@ -87,18 +84,16 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void eliminarArchivo(String rutaRelativa) {
         try {
-            // Limpiamos cualquier "/" extra al principio tal como en la descarga
             String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
-            String urlEliminar = SUPABASE_URL + path;
+            String urlEliminar = supabaseUrl + path; // Cambio a variable dinámica
 
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + SUPABASE_KEY.trim());
-            headers.set("apikey", SUPABASE_KEY.trim());
+            headers.set("Authorization", "Bearer " + supabaseKey.trim()); // Cambio a variable dinámica
+            headers.set("apikey", supabaseKey.trim());                    // Cambio a variable dinámica
 
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-            // Supabase requiere una petición DELETE para remover el objeto físico
             ResponseEntity<String> response = restTemplate.exchange(
                     urlEliminar,
                     HttpMethod.DELETE,

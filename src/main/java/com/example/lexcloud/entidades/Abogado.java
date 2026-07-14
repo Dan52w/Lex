@@ -31,6 +31,9 @@ public class Abogado {
     @OneToMany(mappedBy = "abogado")
     private Set<Equipo_Abogados> equiposAbogados = new LinkedHashSet<>();
 
+    @Column(name = "tarjeta_profesional", nullable = false)
+    private String tarjeta_Profesional;
+
     public Set<Equipo_Abogados> getEquiposAbogados() {
         return equiposAbogados;
     }
@@ -77,5 +80,13 @@ public class Abogado {
 
     public void setPersona(Persona persona) {
         this.persona = persona;
+    }
+
+    public String getTarjeta_Profesional() {
+        return tarjeta_Profesional;
+    }
+
+    public void setTarjeta_Profesional(String tarjeta_Profesional) {
+        this.tarjeta_Profesional = tarjeta_Profesional;
     }
 }

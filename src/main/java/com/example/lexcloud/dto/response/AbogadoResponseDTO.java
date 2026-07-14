@@ -8,5 +8,6 @@ public record AbogadoResponseDTO(Integer id,
                                  String telefono,
                                  String nombreFirma,
                                  String correo,
-                                 String tipoAbogado) {
+                                 String tipoAbogado,
+                                 String tarjeta_Profesional) {
 }

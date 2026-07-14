@@ -8,5 +8,7 @@ public record AbogadoRequestDTO(
         @NotNull(message = "La firma es obligatorio")
         Integer idFirma,
         @NotNull(message = "El tipo de abogado es obligatorio")
-        Integer idTipoAbogado
+        Integer idTipoAbogado,
+        @NotNull(message = "El abogado debe tener una tarjeta profesional")
+        String tarjeta_Profesional
 ) {}

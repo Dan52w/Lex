@@ -113,6 +113,7 @@ public class AbogadoServiceImpl implements AbogadoService {
             // 2. Actualizamos los campos de la entidad persistida
             oldAbogado.setFirma(nuevaFirma);
             oldAbogado.setTipo_Abogado(nuevoTipo);
+            oldAbogado.setTarjeta_Profesional(request.tarjeta_Profesional());
 
             // Nota: Generalmente el ID de Persona no se cambia en un "Update Abogado"
 

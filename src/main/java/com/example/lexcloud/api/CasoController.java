@@ -20,36 +20,54 @@ public class CasoController {
         this.casoService = casoService;
     }
 
-    // 1. Crear un nuevo caso
+    // Crear un nuevo caso
     @PostMapping
     public ResponseEntity<CasoResponseDTO> crearCaso(@Valid @RequestBody CasoRequestDTO request) {
         return new ResponseEntity<>(casoService.guardar(request), HttpStatus.CREATED);
     }
 
-    // 2. Buscar un caso específico por ID
+    // Buscar un caso específico por ID
     @GetMapping("/{id}")
     public ResponseEntity<CasoResponseDTO> buscarPorId(@PathVariable Integer id) {
         return ResponseEntity.ok(casoService.buscarPorId(id));
     }
 
-    // 3. Listar todos los casos vinculados y autorizados de una persona
+    // Actualizar caso
+    @PutMapping("/{id}")
+    public ResponseEntity<CasoResponseDTO> actualizar(
+            @PathVariable Integer id,
+            @Valid @RequestBody CasoRequestDTO request) {
+        return ResponseEntity.ok(casoService.actualizar(id, request));
+    }
+
+    // Desactivar caso (Soft Delete)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
+        casoService.desactivarCaso(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Listar todos los casos vinculados y autorizados de una persona
     @GetMapping("/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona) {
         return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(idPersona));
     }
 
+    // Listar casos autorizados por Abogado y Cliente (Uso interno)
     @GetMapping("/cliente/{idPersona}/{idCliente}")
-    public ResponseEntity<List<CasoResponseDTO>> listarPorCliente(@PathVariable Integer idPersona, @PathVariable Integer idCliente) {
+    public ResponseEntity<List<CasoResponseDTO>> listarPorCliente(
+            @PathVariable Integer idPersona,
+            @PathVariable Integer idCliente) {
         return ResponseEntity.ok(casoService.listarCasosAutorizadosPorAbogadoYCliente(idPersona, idCliente));
     }
 
+    // Listar por caso padre
     @GetMapping("/padre/{idCaso}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorCasoPadre(@PathVariable Integer idCaso){
         return ResponseEntity.ok(casoService.listarPorCasoPadre(idCaso));
     }
 
-    // 4. Buscar por título (parcial) y persona
-    // Ejemplo: /api/casos/buscar/titulo?idPersona=5&query=demanda
+    // Buscar por título (parcial) y persona
     @GetMapping("/buscar/titulo")
     public ResponseEntity<List<CasoResponseDTO>> buscarPorTitulo(
             @RequestParam Integer idPersona,
@@ -57,7 +75,7 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarPorTitulo(query, idPersona));
     }
 
-    // 5. Listar por nombre de estado y persona
+    // Listar por nombre de estado y persona
     @GetMapping("/estado/{estadoNombre}/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorEstado(
             @PathVariable String estadoNombre,
@@ -65,7 +83,7 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarPorEstado(estadoNombre, idPersona));
     }
 
-    // 6. Listar por subtipo y persona
+    // Listar por subtipo y persona
     @GetMapping("/subtipo/{idSubtipo}/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorSubtipo(
             @PathVariable Integer idSubtipo,
@@ -73,7 +91,7 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarPorSubtipo(idSubtipo, idPersona));
     }
 
-    // 7. Filtro avanzado: Subtipo + Estado + Persona
+    // Filtro avanzado: Subtipo + Estado + Persona
     @GetMapping("/filtro-avanzado")
     public ResponseEntity<List<CasoResponseDTO>> filtrarAvanzado(
             @RequestParam Integer idPersona,
@@ -82,18 +100,48 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarPorSubtipoAndEstado(idPersona, idEstado, idSubtipo));
     }
 
-    // 8. Actualizar caso
-    @PutMapping("/{id}")
-    public ResponseEntity<CasoResponseDTO> actualizar(
-            @PathVariable Integer id,
-            @Valid @RequestBody CasoRequestDTO request) {
-        return ResponseEntity.ok(casoService.actualizar(id, request));
+    // Buscar por Radicado Interno de forma segura
+    // Ejemplo: /api/casos/buscar/radicado-interno?idPersona=2&query=EXP-2026-A
+    @GetMapping("/buscar/radicado-interno")
+    public ResponseEntity<CasoResponseDTO> buscarPorRadicadoInterno(
+            @RequestParam Integer idPersona,
+            @RequestParam String query) {
+        return ResponseEntity.ok(casoService.buscarPorRadicadoInterno(query, idPersona));
     }
 
-    // 9. Desactivar caso (Soft Delete)
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
-        casoService.desactivarCaso(id);
-        return ResponseEntity.noContent().build();
+    // Buscar por Radicado Judicial de forma segura
+    // Ejemplo: /api/casos/buscar/radicado-judicial?idPersona=2&query=11001928373
+    @GetMapping("/buscar/radicado-judicial")
+    public ResponseEntity<CasoResponseDTO> buscarPorRadicadoJudicial(
+            @RequestParam Integer idPersona,
+            @RequestParam String query) {
+        return ResponseEntity.ok(casoService.buscarPorRadicadoJudicial(query, idPersona));
+    }
+
+    // Súper Buscador (Título, Radicado Interno o Judicial bajo un solo término)
+    // Ejemplo: /api/casos/buscar/global?idPersona=2&query=demanda
+    @GetMapping("/buscar/global")
+    public ResponseEntity<List<CasoResponseDTO>> superBuscador(
+            @RequestParam Integer idPersona,
+            @RequestParam String query) {
+        return ResponseEntity.ok(casoService.superBuscador(query, idPersona));
+    }
+
+    // Listar por ID de Cliente exacto (Nueva implementación de apoyo)
+    // Ejemplo: /api/casos/cliente-exacto/5/persona/2
+    @GetMapping("/cliente-exacto/{idCliente}/persona/{idPersona}")
+    public ResponseEntity<List<CasoResponseDTO>> listarPorClienteExacto(
+            @PathVariable Integer idCliente,
+            @PathVariable Integer idPersona) {
+        return ResponseEntity.ok(casoService.listarPorCliente(idCliente, idPersona));
+    }
+
+    // Buscar casos por coincidencias en el Nombre o Identificación del Cliente (Texto libre)
+    // Ejemplo: /api/casos/buscar/cliente?idPersona=2&query=10827
+    @GetMapping("/buscar/cliente")
+    public ResponseEntity<List<CasoResponseDTO>> buscarPorClienteNombreOIdentificacion(
+            @RequestParam Integer idPersona,
+            @RequestParam String query) {
+        return ResponseEntity.ok(casoService.buscarPorNombreOIdentificacionCliente(query, idPersona));
     }
 }

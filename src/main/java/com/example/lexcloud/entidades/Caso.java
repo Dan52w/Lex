@@ -16,15 +16,27 @@ public class Caso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
+
     @Column(name = "titulo", nullable = false)
     private String titulo;
+
     @Column(name = "descripcion", nullable = false, length = Integer.MAX_VALUE)
     private String descripcion;
+
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fecha_Inicio;
+
     @ColumnDefault("true")
     @Column(name = "activo", nullable = false)
     private Boolean activo;
+
+    // --- NUEVAS COLUMNAS DE RADICADO ---
+    @Column(name = "radicado_interno", nullable = false, unique = true, length = 10)
+    private String radicadoInterno;
+
+    @Column(name = "radicado_judicial", nullable = false, unique = true, length = 23)
+    private String radicadoJudicial;
+    // ------------------------------------
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_estado", nullable = false)
@@ -39,7 +51,7 @@ public class Caso {
     @JoinColumn(name = "id_caso_padre") // FK en la tabla casos que apunta a casos(id)
     private Caso casoPadre;
 
-    // 2. Relación a los Hijos (Opcional pero muy útil): Un padre tiene muchos hijos
+    // 2. Relación a los Hijos: Un padre tiene muchos hijos
     @OneToMany(mappedBy = "casoPadre", cascade = CascadeType.ALL)
     private List<Caso> subCasos = new ArrayList<>();
 
@@ -55,9 +67,26 @@ public class Caso {
     @OneToMany(mappedBy = "caso")
     private Set<Documento> documentos = new LinkedHashSet<>();
 
+    public String getRadicadoInterno() {
+        return radicadoInterno;
+    }
+
+    public void setRadicadoInterno(String radicadoInterno) {
+        this.radicadoInterno = radicadoInterno;
+    }
+
+    public String getRadicado_Judicial() {
+        return radicadoJudicial;
+    }
+
+    public void setRadicado_Judicial(String radicado_Judicial) {
+        this.radicadoJudicial = radicado_Judicial;
+    }
+
     public Caso getCasoPadre() {
         return casoPadre;
     }
+
     public void setCasoPadre(Caso casoPadre) {
         this.casoPadre = casoPadre;
     }
@@ -65,6 +94,7 @@ public class Caso {
     public List<Caso> getSubCasos() {
         return subCasos;
     }
+
     public void setSubCasos(List<Caso> subCasos) {
         this.subCasos = subCasos;
     }

@@ -68,16 +68,16 @@ public class CasoServiceImpl implements CasoService {
 
         Caso casoGuardado = casoRepository.save(caso);
 
+        // Obtenemos la referencia directa del cliente
         Cliente cliente = clienteRepository.getReferenceById(request.idCliente());
 
-        // 3. Vínculo automático para el Abogado/Persona que crea y para el Cliente
-        crearVinculo(casoGuardado, request.idPersonaCreador(), cliente.getPersona(), true);
+        // 3. Vínculo automático vinculando directamente al CLIENTE (apuntando a la nueva FK)
+        crearVinculo(casoGuardado, request.idPersonaCreador(), cliente, true);
 
         return casoMapper.toResponse(casoGuardado);
     }
 
-    private void crearVinculo(Caso caso, Integer idPersona, Persona cliente, boolean autorizado) {
-        // getReferenceById no hace SELECT, solo prepara la referencia para el INSERT
+    private void crearVinculo(Caso caso, Integer idPersona, Cliente cliente, boolean autorizado) {
         Persona persona = personaRepository.getReferenceById(idPersona);
         Vinculo tipoVinculo = vinculoRepository.getReferenceById(2);
 
@@ -93,8 +93,6 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona) {
-        // El repositorio ya filtra por c.activo = true y vc.autorizado = true
-        // Solo añadimos un filtro extra por si el ID 1 se coló en los vínculos
         return casoRepository.findCasosAutorizadosPorPersona(idPersona).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
@@ -110,7 +108,7 @@ public class CasoServiceImpl implements CasoService {
     }
 
     @Override
-    public  List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona) {
+    public List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona) {
         return casoRepository.buscarPorTituloParcial(titulo, idPersona).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
@@ -149,9 +147,52 @@ public class CasoServiceImpl implements CasoService {
                 .collect(Collectors.toList());
     }
 
+    // =========================================================================
+    // NUEVAS IMPLEMENTACIONES: RADICADOS Y SÚPER BUSCADOR
+    // =========================================================================
+
+    @Override
+    public CasoResponseDTO buscarPorRadicadoInterno(String radicadoInterno, Integer idPersona) {
+        return casoRepository.findByRadicadoInternoAndPersona(radicadoInterno, idPersona)
+                .map(casoMapper::toResponse)
+                .orElseThrow(() -> new EntityNotFoundException("Caso con radicado interno '" + radicadoInterno + "' no encontrado o no autorizado"));
+    }
+
+    @Override
+    public CasoResponseDTO buscarPorRadicadoJudicial(String radicadoJudicial, Integer idPersona) {
+        return casoRepository.findByRadicadoJudicialAndPersona(radicadoJudicial, idPersona)
+                .map(casoMapper::toResponse)
+                .orElseThrow(() -> new EntityNotFoundException("Caso con radicado judicial '" + radicadoJudicial + "' no encontrado o no autorizado"));
+    }
+
+    @Override
+    public List<CasoResponseDTO> superBuscador(String termino, Integer idPersona) {
+        return casoRepository.superBuscador(termino, idPersona).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    // =========================================================================
+
+    @Override
+    public List<CasoResponseDTO> listarPorCliente(Integer idCliente, Integer idPersona) {
+        return casoRepository.findByClienteIdAndPersona(idCliente, idPersona).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona) {
+        return casoRepository.buscarPorClienteNombreOIdentificacion(termino, idPersona).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
     @Override
     public CasoResponseDTO buscarPorId(Integer id) {
-        // REGLA DE ORO: El usuario no puede consultar el ID 1 directamente
         if (id == 1) {
             throw new EntityNotFoundException("Caso no encontrado");
         }
@@ -163,17 +204,15 @@ public class CasoServiceImpl implements CasoService {
     @Override
     @Transactional
     public CasoResponseDTO actualizar(Integer id, CasoRequestDTO request) {
-        // 1. Regla de oro: El caso raíz es intocable
         if (id == 1) {
             throw new EntityNotFoundException("No se puede modificar el caso raíz");
         }
 
         return casoRepository.findById(id).map(oldCaso -> {
-            // 2. Capturamos el estado anterior para el historial
             String estadoAnterior = (oldCaso.getEstado() != null) ? oldCaso.getEstado().getNombre() : "Sin estado";
             String subtipoCasoAnterior = (oldCaso.getSubtipo_Caso() != null) ? oldCaso.getSubtipo_Caso().getNombre() : "Sin definir";
             String nombreCasoAnterior = (oldCaso.getTitulo() != null) ? oldCaso.getTitulo() : "Sin titulo";
-            // 3. Actualizamos datos básicos
+
             oldCaso.setTitulo(request.titulo());
             oldCaso.setDescripcion(request.descripcion());
             oldCaso.setEstado(estadoRepository.findById(request.idEstado())
@@ -181,23 +220,10 @@ public class CasoServiceImpl implements CasoService {
             oldCaso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
                     .orElseThrow(() -> new EntityNotFoundException("Especialidad no encontrada")));
 
-            // 5. Lógica de Caso Padre (Si es null, se asigna al ID 1 automáticamente)
-            //Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
-
-            // Validación de seguridad: Evitar bucle infinito
-            /*if (id.equals(idPadreEfectivo)) {
-                throw new IllegalArgumentException("Un caso no puede ser su propio padre");
-            }*/
-
-            //Caso padre = casoRepository.findById(idPadreEfectivo)
-            //        .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
-            //oldCaso.setCasoPadre(padre);
-
             Caso casoActualizado = casoRepository.save(oldCaso);
 
-            // 7. Registro automático en el historial
             registrarCambioEnHistorial(casoActualizado, request.idPersonaCreador(),
-                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Especialidad anterior: " + subtipoCasoAnterior + ". Titulo anteriro: " + nombreCasoAnterior);
+                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Especialidad anterior: " + subtipoCasoAnterior + ". Titulo anterior: " + nombreCasoAnterior);
             return casoMapper.toResponse(casoActualizado);
 
         }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));

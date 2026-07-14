@@ -15,6 +15,16 @@ public interface CasoService {
     List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona);
     List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idPersona, Integer idEstado, Integer idSubtipo);
     List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso);
+
+    // Nuevas búsquedas por radicados y Súper Buscador
+    CasoResponseDTO buscarPorRadicadoInterno(String radicadoInterno, Integer idPersona);
+    CasoResponseDTO buscarPorRadicadoJudicial(String radicadoJudicial, Integer idPersona);
+    List<CasoResponseDTO> superBuscador(String termino, Integer idPersona);
+
+    // Búsquedas por clientes
+    List<CasoResponseDTO> listarPorCliente(Integer idCliente, Integer idPersona);
+    List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona);
+
     // Gestión
     CasoResponseDTO buscarPorId(Integer id);
     CasoResponseDTO actualizar(Integer id, CasoRequestDTO request);

@@ -8,5 +8,7 @@ public record CasoResponseDTO(
         String descripcion,
         String estadoNombre,
         String subtipoNombre,
+        String radicadoInterno,
+        String radicadoJudicial,
         LocalDate fecha_Inicio
 ) {}

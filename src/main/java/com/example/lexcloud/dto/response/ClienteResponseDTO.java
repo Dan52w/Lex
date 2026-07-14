@@ -2,16 +2,18 @@ package com.example.lexcloud.dto.response;
 
 import java.time.LocalDate;
 
-public record ClienteResponseDTO(Integer id,
-                                 Integer idPersona,
-                                 String nombre,
-                                 String apellido,
-                                 String nombreFirma,
-                                 String telefono,
-                                 String cc,
-                                 String tipoCliente,
-                                 LocalDate fechaVinculacion,
-                                 String correo,
-                                 LocalDate fechaNacimiento,
-                                 boolean activo) {
-}
+public record ClienteResponseDTO(
+        Integer id,
+        String identificacion,
+        String tipoIdentificacion, // de tipoIdentificacion.nombre
+        String nombres,
+        String primerApellido,
+        String segundoApellido,
+        String nombreFirma,       // de firma.nombre
+        String tipoCliente,       // de tipoCliente.nombre
+        LocalDate fechaVinculacion,
+        String correo,
+        String telefonoMovil,
+        LocalDate fechaNacimiento,
+        boolean activo
+) {}

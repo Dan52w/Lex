@@ -3,12 +3,12 @@ package com.example.lexcloud.service.impl;
 import com.example.lexcloud.dto.mappers.ClienteMapper;
 import com.example.lexcloud.dto.request.ClienteRequestDTO;
 import com.example.lexcloud.dto.response.ClienteResponseDTO;
-import com.example.lexcloud.entidades.Cliente;
-import com.example.lexcloud.entidades.Persona;
-import com.example.lexcloud.entidades.Rol;
-import com.example.lexcloud.repositorios.*;
+import com.example.lexcloud.entidades.*;
+import com.example.lexcloud.repositorios.Cliente_Repository;
 import com.example.lexcloud.service.ClienteService;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,124 +19,181 @@ import java.util.Optional;
 @Service
 @Transactional
 public class ClienteServiceImpl implements ClienteService {
+
     private final Cliente_Repository clienteRepository;
-    private final Persona_Repository personaRepository;
-    private final Firma_Repository firmaRepository;
-    private final Rol_Repository rolRepository;
-    private final TipoCliente_Repository tipoClienteRepository;
     private final ClienteMapper clienteMapper;
 
+    @PersistenceContext
+    private final EntityManager entityManager;
+
+    // Constructor limpio: Solo dependemos de lo estrictamente necesario
     public ClienteServiceImpl(Cliente_Repository clienteRepository,
-                              Persona_Repository personaRepository,
-                              Firma_Repository firmaRepository,
-                              Rol_Repository rolRepository,
-                              TipoCliente_Repository tipoClienteRepository,
-                              ClienteMapper clienteMapper) {
+                              ClienteMapper clienteMapper,
+                              EntityManager entityManager) {
         this.clienteRepository = clienteRepository;
-        this.personaRepository = personaRepository;
-        this.firmaRepository = firmaRepository;
-        this.rolRepository = rolRepository;
-        this.tipoClienteRepository = tipoClienteRepository;
         this.clienteMapper = clienteMapper;
+        this.entityManager = entityManager;
     }
 
     @Override
     public ClienteResponseDTO guardar(ClienteRequestDTO request) {
-        // 1. Buscamos si la persona ya existe en el sistema (por CC)
-        Persona personaExistente = personaRepository.findByCc(request.cc())
-                .orElseGet(() -> {
-                    // Si no existe, la creamos desde cero
-                    Persona nuevaPersona = new Persona();
-                    nuevaPersona.setCc(request.cc());
-                    nuevaPersona.setNombre(request.nombre());
-                    nuevaPersona.setApellido(request.apellido());
-                    nuevaPersona.setFechaNacimiento(request.fechaNacimiento());
-                    nuevaPersona.setTelefono(request.telefono());
-                    nuevaPersona.setActivo(true);
-
-                    Rol rol = rolRepository.findByNombre("Cliente")
-                            .orElseThrow(() -> new EntityNotFoundException("Rol no encontrado"));
-                    nuevaPersona.setRol(rol);
-                    return personaRepository.save(nuevaPersona);
+        // 1. Validar que no exista un cliente activo con esa identificación en la misma firma
+        clienteRepository.findByIdentificacionAndFirma(request.identificacion(), request.idFirma())
+                .ifPresent(c -> {
+                    throw new IllegalStateException("Ya existe un cliente con esta identificación en esta firma.");
                 });
 
-        // 2. Verificamos si esta persona ya es cliente de ESTA firma específica
-        Optional<Cliente> clienteExistenteEnFirma = clienteRepository
-                .findByCcAndFirma(personaExistente.getCc(), request.idFirma());
-
-        if (clienteExistenteEnFirma.isPresent()) {
-            throw new IllegalStateException("Esta persona ya está registrada como cliente en esta firma.");
-        }
-
-        // 3. Si llegamos aquí, la persona existe (o se creó) pero no está en esta firma.
-        // Creamos el vínculo de Cliente
+        // 2. Mapear datos básicos directamente al nuevo objeto Cliente
         Cliente nuevoCliente = new Cliente();
-        nuevoCliente.setPersona(personaExistente);
-        nuevoCliente.setFirma(firmaRepository.findById(request.idFirma())
-                .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
-        nuevoCliente.setTipoCliente(tipoClienteRepository.findById(request.idTipoCliente())
-                .orElseThrow(() -> new EntityNotFoundException("Tipo Cliente no encontrado")));
+        nuevoCliente.setIdentificacion(request.identificacion());
+        nuevoCliente.setNombres(request.nombres());
+        nuevoCliente.setPrimerApellido(request.primerApellido());
+        nuevoCliente.setSegundoApellido(request.segundoApellido());
+        nuevoCliente.setFechaNacimiento(request.fechaNacimiento());
+        nuevoCliente.setLugarNacimiento(request.lugarNacimiento());
+        nuevoCliente.setNacionalidad(request.nacionalidad());
 
-        // El mapper o el constructor pueden manejar el resto (activo, fecha_vinculacion)
-        nuevoCliente.setActivo(true);
-        nuevoCliente.setFechaVinculacion(LocalDate.now());
+        nuevoCliente.setCiudadResidencia(request.ciudadResidencia());
+        nuevoCliente.setLocalidadSector(request.localidadSector());
+        nuevoCliente.setBarrio(request.barrio());
+        nuevoCliente.setDireccionResidencia(request.direccionResidencia());
+        nuevoCliente.setTelefonoResidencia(request.telefonoResidencia());
+        nuevoCliente.setDireccionOficina(request.direccionOficina());
+        nuevoCliente.setTelefonoOficina(request.telefonoOficina());
+        nuevoCliente.setTelefonoMovil(request.telefonoMovil());
         nuevoCliente.setCorreo(request.correo());
+
+        nuevoCliente.setFechaVinculacion(LocalDate.now());
+        nuevoCliente.setActivo(true);
+
+        // 3. Asignar relaciones obligatorias utilizando proxies ligeros de JPA
+        nuevoCliente.setFirma(entityManager.getReference(Firma.class, request.idFirma()));
+        nuevoCliente.setTipoCliente(entityManager.getReference(Tipo_Cliente.class, request.idTipoCliente()));
+
+        // 4. Asignar relaciones de caracterización opcionales (evitamos SELECTs innecesarios en cascada)
+        if (request.idTipoIdentificacion() != null) {
+            nuevoCliente.setTipoIdentificacion(entityManager.getReference(Tipo_Identificacion.class, request.idTipoIdentificacion()));
+        }
+        if (request.idGenero() != null) {
+            nuevoCliente.setGenero(entityManager.getReference(Genero.class, request.idGenero()));
+        }
+        if (request.idEstadoCivil() != null) {
+            nuevoCliente.setEstadoCivil(entityManager.getReference(Estado_Civil.class, request.idEstadoCivil()));
+        }
+        if (request.idEstrato() != null) {
+            nuevoCliente.setEstrato(entityManager.getReference(Estrato_Economico.class, request.idEstrato()));
+        }
+        if (request.idVivienda() != null) {
+            nuevoCliente.setVivienda(entityManager.getReference(Tipo_Vivienda.class, request.idVivienda()));
+        }
+        if (request.idNivelSalarial() != null) {
+            nuevoCliente.setNivelSalarial(entityManager.getReference(Nivel_Salarial.class, request.idNivelSalarial()));
+        }
+        if (request.idTipoEmpleado() != null) {
+            nuevoCliente.setTipoEmpleado(entityManager.getReference(Tipo_Empleado.class, request.idTipoEmpleado()));
+        }
+        if (request.idGradoEscolaridad() != null) {
+            nuevoCliente.setGradoEscolaridad(entityManager.getReference(Grado_Escolaridad.class, request.idGradoEscolaridad()));
+        }
+        if (request.idDiscapacidad() != null) {
+            nuevoCliente.setDiscapacidad(entityManager.getReference(Discapacidad.class, request.idDiscapacidad()));
+        }
 
         return clienteMapper.toResponse(clienteRepository.save(nuevoCliente));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ClienteResponseDTO> listarFirma(Integer idFirma) {
         return clienteMapper.toResponseList(clienteRepository.findAllByFirmaId(idFirma));
     }
 
     @Override
-    public List<ClienteResponseDTO> listarNombre(Integer idFirma, String nombre) {
-        return clienteMapper.toResponseList(clienteRepository.findByNombreAndFirma(idFirma, nombre));
+    @Transactional(readOnly = true)
+    public List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro) {
+        // Ejecuta el "Super Buscador" que barre múltiples campos a la vez
+        return clienteMapper.toResponseList(clienteRepository.superBuscador(filtro, idFirma));
     }
 
     @Override
-    public Optional<ClienteResponseDTO> buscarPorCc(String cc, Integer idFirma) {
-        return clienteRepository.findByCcAndFirma(cc, idFirma)
+    @Transactional(readOnly = true)
+    public Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma) {
+        return clienteRepository.findByIdentificacionAndFirma(identificacion, idFirma)
                 .map(clienteMapper::toResponse);
     }
 
     @Override
-    public Optional<ClienteResponseDTO> buscarPorIdPersona(Integer idPersona) {
-        return clienteRepository.findByPersonaId(idPersona)
-                .map(clienteMapper::toResponse);
-    }
-
-    @Override
-    public Optional<ClienteResponseDTO> buscarPorId(Integer id) {
+    @Transactional(readOnly = true)
+    public Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma) {
         return clienteRepository.findById(id)
+                .filter(cliente -> cliente.getActivo() && cliente.getFirma().getId().equals(idFirma))
                 .map(clienteMapper::toResponse);
     }
 
     @Override
-    public ClienteResponseDTO actualizar(Integer id, ClienteRequestDTO request) {
-        return clienteRepository.findById(id).map(oldCliente -> {
-            // Actualizamos los datos de la Persona vinculada
-            Persona p = oldCliente.getPersona();
-            p.setNombre(request.nombre());
-            p.setApellido(request.apellido());
-            p.setTelefono(request.telefono());
-            p.setFechaNacimiento(request.fechaNacimiento());
+    public ClienteResponseDTO actualizar(Integer id, Integer idFirma, ClienteRequestDTO request) {
+        Cliente clienteExistente = clienteRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));
 
-            personaRepository.save(p);
-            oldCliente.setCorreo(request.correo());
+        // Validación crítica de seguridad: ¿El cliente pertenece a la firma del abogado solicitante?
+        if (!clienteExistente.getFirma().getId().equals(idFirma)) {
+            throw new SecurityException("No tiene permisos para modificar un cliente perteneciente a otra firma.");
+        }
 
-            return clienteMapper.toResponse(clienteRepository.save(oldCliente));
-        }).orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));
+        // Actualización de campos de texto
+        clienteExistente.setIdentificacion(request.identificacion());
+        clienteExistente.setNombres(request.nombres());
+        clienteExistente.setPrimerApellido(request.primerApellido());
+        clienteExistente.setSegundoApellido(request.segundoApellido());
+        clienteExistente.setFechaNacimiento(request.fechaNacimiento());
+        clienteExistente.setLugarNacimiento(request.lugarNacimiento());
+        clienteExistente.setNacionalidad(request.nacionalidad());
+
+        clienteExistente.setCiudadResidencia(request.ciudadResidencia());
+        clienteExistente.setLocalidadSector(request.localidadSector());
+        clienteExistente.setBarrio(request.barrio());
+        clienteExistente.setDireccionResidencia(request.direccionResidencia());
+        clienteExistente.setTelefonoResidencia(request.telefonoResidencia());
+        clienteExistente.setDireccionOficina(request.direccionOficina());
+        clienteExistente.setTelefonoOficina(request.telefonoOficina());
+        clienteExistente.setTelefonoMovil(request.telefonoMovil());
+        clienteExistente.setCorreo(request.correo());
+
+        // Actualización de referencias
+        clienteExistente.setTipoCliente(entityManager.getReference(Tipo_Cliente.class, request.idTipoCliente()));
+
+        clienteExistente.setTipoIdentificacion(request.idTipoIdentificacion() != null ?
+                entityManager.getReference(Tipo_Identificacion.class, request.idTipoIdentificacion()) : null);
+        clienteExistente.setGenero(request.idGenero() != null ?
+                entityManager.getReference(Genero.class, request.idGenero()) : null);
+        clienteExistente.setEstadoCivil(request.idEstadoCivil() != null ?
+                entityManager.getReference(Estado_Civil.class, request.idEstadoCivil()) : null);
+        clienteExistente.setEstrato(request.idEstrato() != null ?
+                entityManager.getReference(Estrato_Economico.class, request.idEstrato()) : null);
+        clienteExistente.setVivienda(request.idVivienda() != null ?
+                entityManager.getReference(Tipo_Vivienda.class, request.idVivienda()) : null);
+        clienteExistente.setNivelSalarial(request.idNivelSalarial() != null ?
+                entityManager.getReference(Nivel_Salarial.class, request.idNivelSalarial()) : null);
+        clienteExistente.setTipoEmpleado(request.idTipoEmpleado() != null ?
+                entityManager.getReference(Tipo_Empleado.class, request.idTipoEmpleado()) : null);
+        clienteExistente.setGradoEscolaridad(request.idGradoEscolaridad() != null ?
+                entityManager.getReference(Grado_Escolaridad.class, request.idGradoEscolaridad()) : null);
+        clienteExistente.setDiscapacidad(request.idDiscapacidad() != null ?
+                entityManager.getReference(Discapacidad.class, request.idDiscapacidad()) : null);
+
+        return clienteMapper.toResponse(clienteRepository.save(clienteExistente));
     }
 
     @Override
-    public void desactivarCliente(Integer id) {
+    public void desactivarCliente(Integer id, Integer idFirma) {
         Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));
 
-        // Soft delete: Desactivamos el vínculo con la firma,
-        // pero no borramos a la Persona del sistema global.
+        // Validación crítica de seguridad para borrado lógico
+        if (!cliente.getFirma().getId().equals(idFirma)) {
+            throw new SecurityException("No tiene permisos para desactivar un cliente de otra firma.");
+        }
+
         cliente.setActivo(false);
         clienteRepository.save(cliente);
     }

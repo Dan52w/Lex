@@ -30,13 +30,11 @@ public class Caso {
     @Column(name = "activo", nullable = false)
     private Boolean activo;
 
-    // --- NUEVAS COLUMNAS DE RADICADO ---
     @Column(name = "radicado_interno", nullable = false, unique = true, length = 10)
     private String radicadoInterno;
 
     @Column(name = "radicado_judicial", nullable = false, unique = true, length = 23)
     private String radicadoJudicial;
-    // ------------------------------------
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_estado", nullable = false)
@@ -46,12 +44,14 @@ public class Caso {
     @JoinColumn(name = "id_subtipo_caso", nullable = false)
     private Subtipo_Caso subtipo_Caso;
 
-    // 1. Relación al Padre: Muchos casos pueden tener el mismo padre
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_firma", nullable = false)
+    private Firma firma;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_caso_padre") // FK en la tabla casos que apunta a casos(id)
+    @JoinColumn(name = "id_caso_padre")
     private Caso casoPadre;
 
-    // 2. Relación a los Hijos: Un padre tiene muchos hijos
     @OneToMany(mappedBy = "casoPadre", cascade = CascadeType.ALL)
     private List<Caso> subCasos = new ArrayList<>();
 
@@ -67,12 +67,12 @@ public class Caso {
     @OneToMany(mappedBy = "caso")
     private Set<Documento> documentos = new LinkedHashSet<>();
 
-    public String getRadicadoInterno() {
-        return radicadoInterno;
+    public Firma getFirma() {
+        return firma;
     }
 
-    public void setRadicadoInterno(String radicadoInterno) {
-        this.radicadoInterno = radicadoInterno;
+    public void setFirma(Firma firma) {
+        this.firma = firma;
     }
 
     public String getRadicado_Judicial() {
@@ -185,5 +185,21 @@ public class Caso {
 
     public void setActivo(Boolean activo) {
         this.activo = activo;
+    }
+
+    public String getRadicadoInterno() {
+        return radicadoInterno;
+    }
+
+    public void setRadicadoInterno(String radicadoInterno) {
+        this.radicadoInterno = radicadoInterno;
+    }
+
+    public String getRadicadoJudicial() {
+        return radicadoJudicial;
+    }
+
+    public void setRadicadoJudicial(String radicadoJudicial) {
+        this.radicadoJudicial = radicadoJudicial;
     }
 }

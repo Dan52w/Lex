@@ -47,7 +47,8 @@ public class VinculoCasoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/cliente/{idCaso}")
+    // Ajuste semántico REST: refleja que buscas el cliente "asociado a un caso" usando el idCaso
+    @GetMapping("/caso/{idCaso}/cliente")
     public ResponseEntity<VinculoCasoResponseDTO> obtenerCliente(@PathVariable Integer idCaso) {
         return vinculoCasoService.obtenerCliente(idCaso)
                 .map(ResponseEntity::ok)

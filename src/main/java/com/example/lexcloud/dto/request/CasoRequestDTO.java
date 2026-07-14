@@ -23,5 +23,7 @@ public record CasoRequestDTO(
         @NotNull(message = "Selecciona el tipo de caso")
         Integer idSubtipo,
         LocalDate fecha_Inicio,
+        @NotNull(message = "El caso debe estar referenciado a una firma")
+        Integer idFirma,
         Integer idCasoPadre // Opcional
 ) {}

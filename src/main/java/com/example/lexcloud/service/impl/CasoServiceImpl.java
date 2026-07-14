@@ -26,6 +26,7 @@ public class CasoServiceImpl implements CasoService {
     private final Vinculo_Repository vinculoRepository;
     private final Cliente_Repository clienteRepository;
     private final HistorialCambio_Repository historialCambioRepository;
+    private final Firma_Repository firmaRepository;
     private final CasoMapper casoMapper;
 
     public CasoServiceImpl(Caso_Repository casoRepository,
@@ -36,6 +37,7 @@ public class CasoServiceImpl implements CasoService {
                            HistorialCambio_Repository historialCambioRepository,
                            Vinculo_Repository vinculoRepository,
                            Cliente_Repository clienteRepository,
+                           Firma_Repository firmaRepository,
                            CasoMapper casoMapper) {
         this.casoRepository = casoRepository;
         this.estadoRepository = estadoRepository;
@@ -45,6 +47,7 @@ public class CasoServiceImpl implements CasoService {
         this.historialCambioRepository = historialCambioRepository;
         this.vinculoRepository = vinculoRepository;
         this.clienteRepository = clienteRepository;
+        this.firmaRepository = firmaRepository;
         this.casoMapper = casoMapper;
     }
 
@@ -65,6 +68,9 @@ public class CasoServiceImpl implements CasoService {
                 .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
 
         caso.setCasoPadre(padre);
+
+        caso.setFirma(firmaRepository.findById(request.idFirma())
+                .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
 
         Caso casoGuardado = casoRepository.save(caso);
 

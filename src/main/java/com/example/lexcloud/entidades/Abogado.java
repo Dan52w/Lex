@@ -28,6 +28,17 @@ public class Abogado {
     @OneToMany(mappedBy = "abogado")
     private Set<Agenda> agendas = new LinkedHashSet<>();
 
+    @OneToMany(mappedBy = "abogado")
+    private Set<Equipo_Abogados> equiposAbogados = new LinkedHashSet<>();
+
+    public Set<Equipo_Abogados> getEquiposAbogados() {
+        return equiposAbogados;
+    }
+
+    public void setEquiposAbogados(Set<Equipo_Abogados> equiposAbogados) {
+        this.equiposAbogados = equiposAbogados;
+    }
+
     public Integer getId() {
         return id;
     }

@@ -25,6 +25,9 @@ public class Firma {
     @OneToMany(mappedBy = "firma")
     private Set<Cliente> clientes = new LinkedHashSet<>();
 
+    @OneToMany(mappedBy = "firma")
+    private Set<Caso> casos = new LinkedHashSet<>();
+
     public Integer getId() {
         return id;
     }
@@ -71,5 +74,13 @@ public class Firma {
 
     public void setNit(String nit) {
         this.nit = nit;
+    }
+
+    public Set<Caso> getCasos() {
+        return casos;
+    }
+
+    public void setCasos(Set<Caso> casos) {
+        this.casos = casos;
     }
 }

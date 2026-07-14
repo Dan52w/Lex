@@ -16,20 +16,24 @@ public class Persona {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
+
     @Column(name = "nombre", nullable = false, length = 150)
     private String nombre;
+
     @Column(name = "apellido", nullable = false, length = 150)
     private String apellido;
+
     @Column(name = "cc", nullable = false, length = 20)
     private String cc;
+
     @ColumnDefault("true")
     @Column(name = "activo", nullable = false)
     private Boolean activo;
+
     @Column(name = "telefono", nullable = false, length = 20)
     private String telefono;
 
-    // CAMBIO: En lugar de Integer, usamos el objeto Rol
-    @ManyToOne(fetch = FetchType.LAZY) // Muchos usuarios tienen un mismo Rol
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_rol", nullable = false)
     private Rol rol;
 
@@ -42,19 +46,14 @@ public class Persona {
     @OneToOne(mappedBy = "persona")
     private Login login;
 
-    // Casos donde esta persona aparece como "Persona Firma"
     @OneToMany(mappedBy = "personaFirma")
     private Set<Vinculo_Caso> vinculosComoFirma = new LinkedHashSet<>();
-
-    // Casos donde esta persona aparece como "Cliente"
-    @OneToMany(mappedBy = "cliente")
-    private Set<Vinculo_Caso> vinculosComoCliente = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "persona")
     private Set<Historial_Cambio> historial_Cambios = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "persona")
-    private Set<Cliente> clientes = new LinkedHashSet<>();
+    private Set<Equipo_Abogados> equiposAbogados = new LinkedHashSet<>();
 
     public Integer getId() {
         return id;
@@ -124,8 +123,8 @@ public class Persona {
         return rol;
     }
 
-    public void setRol(Rol idRol) {
-        this.rol = idRol;
+    public void setRol(Rol rol) {
+        this.rol = rol;
     }
 
     public Set<Vinculo_Caso> getVinculosComoFirma() {
@@ -136,14 +135,6 @@ public class Persona {
         this.vinculosComoFirma = vinculosComoFirma;
     }
 
-    public Set<Vinculo_Caso> getVinculosComoCliente() {
-        return vinculosComoCliente;
-    }
-
-    public void setVinculosComoCliente(Set<Vinculo_Caso> vinculosComoCliente) {
-        this.vinculosComoCliente = vinculosComoCliente;
-    }
-
     public Set<Historial_Cambio> getHistorial_Cambios() {
         return historial_Cambios;
     }
@@ -152,12 +143,12 @@ public class Persona {
         this.historial_Cambios = historial_Cambios;
     }
 
-    public Set<Cliente> getClientes() {
-        return clientes;
+    public Set<Equipo_Abogados> getEquiposAbogados() {
+        return equiposAbogados;
     }
 
-    public void setClientes(Set<Cliente> clientes) {
-        this.clientes = clientes;
+    public void setEquiposAbogados(Set<Equipo_Abogados> equiposAbogados) {
+        this.equiposAbogados = equiposAbogados;
     }
 
     public String getTelefono() {

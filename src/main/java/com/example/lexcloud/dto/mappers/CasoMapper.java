@@ -24,6 +24,7 @@ public interface CasoMapper {
     @Mapping(target = "subtipo_Caso", ignore = true)
     @Mapping(target = "casoPadre", ignore = true)
     @Mapping(target = "activo", constant = "true")
+    @Mapping(target = "firma", ignore = true)
     Caso toEntity(CasoRequestDTO request);
 
     List<CasoResponseDTO> toResponseList(List<Caso> casos);

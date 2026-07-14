@@ -10,17 +10,19 @@ public class Vinculo_Caso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
+
     @ColumnDefault("false")
     @Column(name = "autorizado", nullable = false)
     private Boolean autorizado;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_persona_firma", nullable = false)
-    private Persona personaFirma;
+    private Persona personaFirma; // El abogado o administrativo de la firma
 
+    // CORRECCIÓN: Ahora apunta a Cliente en lugar de Persona
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_cliente", nullable = false)
-    private Persona cliente;
+    private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_caso", nullable = false)
@@ -54,11 +56,11 @@ public class Vinculo_Caso {
         this.personaFirma = personaFirma;
     }
 
-    public Persona getCliente() {
+    public Cliente getCliente() {
         return cliente;
     }
 
-    public void setCliente(Persona cliente) {
+    public void setCliente(Cliente cliente) {
         this.cliente = cliente;
     }
 

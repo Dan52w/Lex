@@ -9,10 +9,9 @@ import java.util.Optional;
 public interface ClienteService {
     ClienteResponseDTO guardar(ClienteRequestDTO request);
     List<ClienteResponseDTO> listarFirma(Integer idFirma);
-    List<ClienteResponseDTO> listarNombre(Integer idFirma, String nombre);
-    Optional<ClienteResponseDTO> buscarPorCc(String cc, Integer idFirma);
-    Optional<ClienteResponseDTO> buscarPorIdPersona(Integer idPersona);
-    Optional<ClienteResponseDTO> buscarPorId(Integer id);
-    ClienteResponseDTO actualizar(Integer id, ClienteRequestDTO request);
-    void desactivarCliente(Integer id);
+    List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro);
+    Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma);
+    Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma);
+    ClienteResponseDTO actualizar(Integer id, Integer idFirma, ClienteRequestDTO request);
+    void desactivarCliente(Integer id, Integer idFirma);
 }

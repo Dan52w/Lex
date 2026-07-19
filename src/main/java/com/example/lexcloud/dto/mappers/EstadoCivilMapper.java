@@ -15,5 +15,5 @@ public interface EstadoCivilMapper {
     @Mapping(target = "id", ignore = true)
     Estado_Civil toEntity(EstadoCivilRequestDTO request);
 
-    List<Estado_Civil> toResponseList(List<Estado_Civil> EstadosCiviless);
+    List<EstadoCivilResponseDTO> toResponseList(List<Estado_Civil> EstadosCiviless);
 }

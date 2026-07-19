@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.EstratoEconomicoResponseDTO;
 import com.example.lexcloud.entidades.Estrato_Economico;
 import com.example.lexcloud.repositorios.EstratoEconomico_Repository;
 import com.example.lexcloud.service.EstratoEconomicoService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class EstratoEconomicoServiceImpl implements EstratoEconomicoService {
     private final EstratoEconomico_Repository estratoEconomicoRepository;
     private final EstratoEconomicoMapper estratoEconomicoMapper;

@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.TipoIdenficacionResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Identificacion;
 import com.example.lexcloud.repositorios.TipoIdentificacion_Repository;
 import com.example.lexcloud.service.TipoIdentificacionService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class TipoIdentificacionServiceImpl implements TipoIdentificacionService {
     private final TipoIdentificacion_Repository tipoIdentificacionRepository;
     private final TipoIdentificacionMapper tipoIdentificacionMapper;

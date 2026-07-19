@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.EstadoCivilResponseDTO;
 import com.example.lexcloud.entidades.Estado_Civil;
 import com.example.lexcloud.repositorios.EstadoCivil_Repository;
 import com.example.lexcloud.service.EstadoCivilService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class EstadoCivilServiceImpl implements EstadoCivilService {
     private final EstadoCivil_Repository estadoCivilRepository;
     private final EstadoCivilMapper estadoCivilMapper;

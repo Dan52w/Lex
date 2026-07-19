@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.TipoViviendaResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Vivienda;
 import com.example.lexcloud.repositorios.TipoVivienda_Repository;
 import com.example.lexcloud.service.TipoViviendaService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class TipoViviendaServiceImpl implements TipoViviendaService {
     private final TipoVivienda_Repository tipoViviendaRepository;
     private final TipoViviendaMapper tipoViviendaMapper;

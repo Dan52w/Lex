@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.GradoEscolaridadResponseDTO;
 import com.example.lexcloud.entidades.Grado_Escolaridad;
 import com.example.lexcloud.repositorios.GradoEscolaridad_Repository;
 import com.example.lexcloud.service.GradoEscolaridadService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class GradoEscolaridadServiceImpl implements GradoEscolaridadService {
     private final GradoEscolaridad_Repository gradoEscolaridadRepository;
     private final GradoEscolaridadMapper gradoEscolaridadMapper;

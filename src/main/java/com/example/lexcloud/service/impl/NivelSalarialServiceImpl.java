@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.NivelSalarialResponseDTO;
 import com.example.lexcloud.entidades.Nivel_Salarial;
 import com.example.lexcloud.repositorios.NivelSalarial_Repository;
 import com.example.lexcloud.service.NivelSalarialService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class NivelSalarialServiceImpl implements NivelSalarialService {
     private final NivelSalarial_Repository nivelSalarialRepository;
     private final NivelSalarialMapper nivelSalarialMapper;

@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.GeneroResponseDTO;
 import com.example.lexcloud.entidades.Genero;
 import com.example.lexcloud.repositorios.Genero_Repository;
 import com.example.lexcloud.service.GeneroService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class GeneroServiceImpl implements GeneroService {
     private final Genero_Repository generoRepository;
     private final GeneroMapper generoMapper;

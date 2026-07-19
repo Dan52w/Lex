@@ -6,10 +6,14 @@ import com.example.lexcloud.dto.response.DiscapacidadResponseDTO;
 import com.example.lexcloud.entidades.Discapacidad;
 import com.example.lexcloud.repositorios.Discapacidad_Repository;
 import com.example.lexcloud.service.DiscapacidadService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@Transactional
 public class DiscapacidadServiceImpl implements DiscapacidadService {
     private final Discapacidad_Repository discapacidadRepository;
     private final DiscapacidadMapper discapacidadMapper;

@@ -98,4 +98,9 @@ public class AuthController {
 
         return ResponseEntity.ok("Sesión cerrada correctamente");
     }
+
+    @GetMapping("/existe-correo/{correo}")
+    public ResponseEntity<Boolean> existeCorreo(@PathVariable String correo) {
+        return ResponseEntity.ok(authService.existeCorreo(correo.trim()));
+    }
 }

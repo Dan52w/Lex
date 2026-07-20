@@ -11,4 +11,6 @@ public interface Persona_Repository extends JpaRepository<Persona, Integer> {
     Optional<Persona> findByCc(String cc);
     // Consulta para validar ID y que el campo activo sea true
     Optional<Persona> findByIdAndActivoTrue(Integer id);
+
+    boolean existsByCc(String cc);
 }

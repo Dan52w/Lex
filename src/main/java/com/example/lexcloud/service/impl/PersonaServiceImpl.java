@@ -86,6 +86,11 @@ public class PersonaServiceImpl implements PersonaService {
     }
 
     @Override
+    public boolean existeCc(String cc) {
+        return personaRepository.existsByCc(cc);
+    }
+
+    @Override
     @Transactional
     public void desactivar(Integer id) {
         Persona persona = personaRepository.findById(id)

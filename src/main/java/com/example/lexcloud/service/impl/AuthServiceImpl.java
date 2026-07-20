@@ -43,4 +43,9 @@ public class AuthServiceImpl implements AuthService {
 
         loginRepository.save(login);
     }
+
+    @Override
+    public boolean existeCorreo(String correo) {
+        return loginRepository.existsByCorreo(correo);
+    }
 }

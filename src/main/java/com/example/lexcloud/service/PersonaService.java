@@ -11,5 +11,6 @@ public interface PersonaService {
     Optional<PersonaResponseDTO> buscarPorIdActivo(Integer id);
     Optional<PersonaResponseDTO> buscarPorId(Integer id);
     PersonaResponseDTO actualizar(Integer id, PersonaRequestDTO requestDTO);
+    boolean existeCc(String cc);
     void desactivar(Integer id);
 }

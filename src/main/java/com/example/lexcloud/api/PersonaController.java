@@ -44,6 +44,11 @@ public class PersonaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/existe-cc/{cc}")
+    public ResponseEntity<Boolean> existeCc(@PathVariable String cc) {
+        return ResponseEntity.ok(personaService.existeCc(cc));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<PersonaResponseDTO> actualizar(@PathVariable Integer id, @Valid @RequestBody PersonaRequestDTO request) {
         return ResponseEntity.ok(personaService.actualizar(id, request));

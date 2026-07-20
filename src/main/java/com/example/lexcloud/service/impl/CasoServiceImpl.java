@@ -52,6 +52,7 @@ public class CasoServiceImpl implements CasoService {
     }
 
     @Override
+    @Transactional
     public CasoResponseDTO guardar(CasoRequestDTO request) {
         Caso caso = casoMapper.toEntity(request);
 
@@ -63,21 +64,53 @@ public class CasoServiceImpl implements CasoService {
 
         // 2. Manejo de Caso Padre (Por defecto ID 1 si viene null)
         Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
-
         Caso padre = casoRepository.findById(idPadreEfectivo)
                 .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
-
         caso.setCasoPadre(padre);
 
         caso.setFirma(firmaRepository.findById(request.idFirma())
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
 
-        Caso casoGuardado = casoRepository.save(caso);
+        // 3. Manejo de Radicado Interno (Valor temporal 100% NÚMERICO de 10 dígitos)
+        boolean necesitaGenerarRadicadoInterno = (caso.getRadicadoInterno() == null || caso.getRadicadoInterno().trim().isEmpty());
+        if (necesitaGenerarRadicadoInterno) {
+            // Genera una cadena numórica temporal de exactamente 10 dígitos para no violar chk_radicado_interno_numerico
+            long tempNum = Math.abs(System.nanoTime() % 10000000000L);
+            String tempRadicado = String.format("%010d", tempNum);
+            caso.setRadicadoInterno(tempRadicado);
+        }
 
-        // Obtenemos la referencia directa del cliente
+        // 4. Manejo de Radicado Judicial (Valor temporal 100% NÚMERICO de 23 dígitos)
+        boolean necesitaGenerarRadicadoJudicial = (caso.getRadicadoJudicial() == null ||
+                caso.getRadicadoJudicial().trim().equals("0") ||
+                caso.getRadicadoJudicial().trim().isEmpty());
+
+        if (necesitaGenerarRadicadoJudicial) {
+            // Rellena temporalmente a 23 dígitos numéricos usando ceros a la izquierda
+            String radInternoTemp = caso.getRadicadoInterno();
+            caso.setRadicadoJudicial(String.format("%23s", radInternoTemp).replace(' ', '0'));
+        }
+
+        // Guardado inicial para obtener el ID secuencial real de la base de datos
+        Caso casoGuardado = casoRepository.saveAndFlush(caso);
+
+        // 5. Reemplazo de los valores temporales por los radicados definitivos basados en el ID real asignado
+        if (necesitaGenerarRadicadoInterno) {
+            // Formatea el ID asignado a 10 dígitos numéricos (ej. "0000000005")
+            casoGuardado.setRadicadoInterno(String.format("%010d", casoGuardado.getId()));
+        }
+
+        if (necesitaGenerarRadicadoJudicial) {
+            // Formatea el radicado judicial definitivo a 23 dígitos numéricos basado en el radicado interno
+            String radInternoFinal = casoGuardado.getRadicadoInterno();
+            casoGuardado.setRadicadoJudicial(String.format("%23s", radInternoFinal).replace(' ', '0'));
+        }
+
+        // Guardado final con radicados procesados
+        casoGuardado = casoRepository.save(casoGuardado);
+
+        // 6. Vínculo automático con el Cliente
         Cliente cliente = clienteRepository.getReferenceById(request.idCliente());
-
-        // 3. Vínculo automático vinculando directamente al CLIENTE (apuntando a la nueva FK)
         crearVinculo(casoGuardado, request.idPersonaCreador(), cliente, true);
 
         return casoMapper.toResponse(casoGuardado);
@@ -97,6 +130,60 @@ public class CasoServiceImpl implements CasoService {
         vinculoCasoRepository.save(vinculoCaso);
     }
 
+    @Override
+    @Transactional
+    public CasoResponseDTO actualizar(Integer id, CasoRequestDTO request) {
+        if (id == 1) {
+            throw new EntityNotFoundException("No se puede modificar el caso raíz");
+        }
+
+        return casoRepository.findById(id).map(oldCaso -> {
+            String estadoAnterior = (oldCaso.getEstado() != null) ? oldCaso.getEstado().getNombre() : "Sin estado";
+            //String subtipoCasoAnterior = (oldCaso.getSubtipo_Caso() != null) ? oldCaso.getSubtipo_Caso().getNombre() : "Sin definir";
+            String nombreCasoAnterior = (oldCaso.getTitulo() != null) ? oldCaso.getTitulo() : "Sin titulo";
+
+            // CAMPOS PERMITIDOS DE ACTUALIZAR:
+            oldCaso.setTitulo(request.titulo());
+
+            if (request.idEstado() != null) {
+                oldCaso.setEstado(estadoRepository.findById(request.idEstado())
+                        .orElseThrow(() -> new EntityNotFoundException("Estado no encontrado")));
+            }
+            /* Ya no se permitira actualizar el Subtipo Caso -- Se guarda consulta en caso de que sea necesario
+            if (request.idSubtipo() != null) {
+                oldCaso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
+                        .orElseThrow(() -> new EntityNotFoundException("Especialidad no encontrada")));
+            }
+            */
+            // Actualización condicional del Radicado Judicial (si viene "0", re-calcula a 23 dígitos)
+            if (request.radicadoJudicial() != null && !request.radicadoJudicial().trim().isEmpty()) {
+                if ("0".equals(request.radicadoJudicial().trim())) {
+                    String radInterno = oldCaso.getRadicadoInterno();
+                    oldCaso.setRadicadoJudicial(String.format("%23s", radInterno).replace(' ', '0'));
+                } else {
+                    oldCaso.setRadicadoJudicial(request.radicadoJudicial());
+                }
+            }
+
+            Caso casoActualizado = casoRepository.save(oldCaso);
+
+            registrarCambioEnHistorial(casoActualizado, request.idPersonaCreador(),
+                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Título anterior: " + nombreCasoAnterior);
+            return casoMapper.toResponse(casoActualizado);
+
+        }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));
+    }
+
+    private void registrarCambioEnHistorial(Caso caso, Integer idPersona, String descripcion) {
+        Historial_Cambio historial = new Historial_Cambio();
+        historial.setCaso(caso);
+        historial.setPersona(personaRepository.getReferenceById(idPersona));
+        historial.setDescripcion(descripcion);
+        historial.setFecha(LocalDate.now());
+        historialCambioRepository.save(historial);
+    }
+
+    // Métodos de consulta...
     @Override
     public List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona) {
         return casoRepository.findCasosAutorizadosPorPersona(idPersona).stream()
@@ -153,10 +240,6 @@ public class CasoServiceImpl implements CasoService {
                 .collect(Collectors.toList());
     }
 
-    // =========================================================================
-    // NUEVAS IMPLEMENTACIONES: RADICADOS Y SÚPER BUSCADOR
-    // =========================================================================
-
     @Override
     public CasoResponseDTO buscarPorRadicadoInterno(String radicadoInterno, Integer idPersona) {
         return casoRepository.findByRadicadoInternoAndPersona(radicadoInterno, idPersona)
@@ -178,8 +261,6 @@ public class CasoServiceImpl implements CasoService {
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
-    // =========================================================================
 
     @Override
     public List<CasoResponseDTO> listarPorCliente(Integer idCliente, Integer idPersona) {
@@ -205,43 +286,6 @@ public class CasoServiceImpl implements CasoService {
         return casoRepository.findById(id)
                 .map(casoMapper::toResponse)
                 .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
-    }
-
-    @Override
-    @Transactional
-    public CasoResponseDTO actualizar(Integer id, CasoRequestDTO request) {
-        if (id == 1) {
-            throw new EntityNotFoundException("No se puede modificar el caso raíz");
-        }
-
-        return casoRepository.findById(id).map(oldCaso -> {
-            String estadoAnterior = (oldCaso.getEstado() != null) ? oldCaso.getEstado().getNombre() : "Sin estado";
-            String subtipoCasoAnterior = (oldCaso.getSubtipo_Caso() != null) ? oldCaso.getSubtipo_Caso().getNombre() : "Sin definir";
-            String nombreCasoAnterior = (oldCaso.getTitulo() != null) ? oldCaso.getTitulo() : "Sin titulo";
-
-            oldCaso.setTitulo(request.titulo());
-            oldCaso.setDescripcion(request.descripcion());
-            oldCaso.setEstado(estadoRepository.findById(request.idEstado())
-                    .orElseThrow(() -> new EntityNotFoundException("Estado no encontrado")));
-            oldCaso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
-                    .orElseThrow(() -> new EntityNotFoundException("Especialidad no encontrada")));
-
-            Caso casoActualizado = casoRepository.save(oldCaso);
-
-            registrarCambioEnHistorial(casoActualizado, request.idPersonaCreador(),
-                    "Actualización de datos. Estado anterior: " + estadoAnterior + ". Especialidad anterior: " + subtipoCasoAnterior + ". Titulo anterior: " + nombreCasoAnterior);
-            return casoMapper.toResponse(casoActualizado);
-
-        }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));
-    }
-
-    private void registrarCambioEnHistorial(Caso caso, Integer idPersona, String descripcion) {
-        Historial_Cambio historial = new Historial_Cambio();
-        historial.setCaso(caso);
-        historial.setPersona(personaRepository.getReferenceById(idPersona));
-        historial.setDescripcion(descripcion);
-        historial.setFecha(LocalDate.now());
-        historialCambioRepository.save(historial);
     }
 
     @Override

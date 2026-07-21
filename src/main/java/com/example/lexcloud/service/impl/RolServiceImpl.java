@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Rol;
 import com.example.lexcloud.repositorios.Rol_Repository;
 import com.example.lexcloud.service.RolService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +30,15 @@ public class RolServiceImpl implements RolService {
     @Transactional
     public RolResponseDTO guardar(RolRequestDTO request) {
         if (rolRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("El rol con el nombre '" + request.nombre() + "' ya existe.");
+            throw new IllegalStateException("El Rol con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Rol rol = rolMapper.toEntity(request);
-        return rolMapper.toResponse(rolRepository.save(rol));
+        try {
+            return rolMapper.toResponse(rolRepository.save(rol));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Rol con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

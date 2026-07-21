@@ -8,6 +8,7 @@ import com.example.lexcloud.repositorios.TipoCliente_Repository;
 import com.example.lexcloud.service.TipoClienteService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,12 +27,16 @@ public class TipoClienteServiceImpl implements TipoClienteService {
 
     @Override
     public TipoClienteResponseDTO guardar(TipoClienteRequestDTO request) {
-        if(tipoClienteRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("El tipo cliente con el nombre '" + request.nombre() + "' ya existe.");
+        if (tipoClienteRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Tipo Cliente con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Cliente tipoCliente = tipoClienteMapper.toEntity(request);
-        return tipoClienteMapper.toResponse(tipoClienteRepository.save(tipoCliente));
+        try {
+            return tipoClienteMapper.toResponse(tipoClienteRepository.save(tipoCliente));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Cliente con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

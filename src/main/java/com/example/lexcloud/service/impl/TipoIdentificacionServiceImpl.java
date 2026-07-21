@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.TipoIdenficacionResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Identificacion;
 import com.example.lexcloud.repositorios.TipoIdentificacion_Repository;
 import com.example.lexcloud.service.TipoIdentificacionService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class TipoIdentificacionServiceImpl implements TipoIdentificacionService 
     @Override
     public TipoIdenficacionResponseDTO guardar(TipoIdentificacionRequestDTO request) {
         if (tipoIdentificacionRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un Tipo identificacion con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Identificacion tipoIdentificacion = tipoIdentificacionMapper.toEntity(request);
-        return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentificacion));
+        try {
+            return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentificacion));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

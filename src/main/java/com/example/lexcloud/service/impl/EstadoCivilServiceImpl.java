@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstadoCivilResponseDTO;
 import com.example.lexcloud.entidades.Estado_Civil;
 import com.example.lexcloud.repositorios.EstadoCivil_Repository;
 import com.example.lexcloud.service.EstadoCivilService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class EstadoCivilServiceImpl implements EstadoCivilService {
     @Override
     public EstadoCivilResponseDTO guardar(EstadoCivilRequestDTO request) {
         if (estadoCivilRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe una discapacidad con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
         }
 
-        Estado_Civil estadoCivil = estadoCivilMapper.toEntity(request);
-        return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
+        Estado_Civil  estadoCivil = estadoCivilMapper.toEntity(request);
+        try {
+            return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

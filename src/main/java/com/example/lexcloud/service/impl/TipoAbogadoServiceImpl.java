@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Tipo_Abogado;
 import com.example.lexcloud.repositorios.TipoAbogado_Repository;
 import com.example.lexcloud.service.TipoAbogadoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,16 @@ public class TipoAbogadoServiceImpl implements TipoAbogadoService {
 
     @Override
     public TipoAbogadoResponseDTO guardar(TipoAbogadoRequestDTO request) {
-        if(tipoAbogadoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("La especialización con el nombre '" + request.nombre() + "' ya existe.");
+        if (tipoAbogadoRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Abogado tipoAbogado = tipoAbogadoMapper.toEntity(request);
-        return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(tipoAbogado));
+        try {
+            return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(tipoAbogado));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

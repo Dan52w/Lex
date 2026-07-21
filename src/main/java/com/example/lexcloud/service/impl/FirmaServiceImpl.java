@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Firma;
 import com.example.lexcloud.repositorios.Firma_Repository;
 import com.example.lexcloud.service.FirmaService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,14 +28,16 @@ public class FirmaServiceImpl implements FirmaService {
 
     @Override
     public FirmaResponseDTO guardar(FirmaRequestDTO request) {
-        // 1. Validar que el NIT no esté registrado previamente
         if (firmaRepository.findByNit(request.nit()).isPresent()) {
-            throw new IllegalStateException("Ya existe una firma registrada con el NIT: " + request.nit());
+            throw new IllegalStateException("La Firma con el NIT '" + request.nit() + "' ya existe.");
         }
 
         Firma firma = firmaMapper.toEntity(request);
-
-        return firmaMapper.toResponse(firmaRepository.save(firma));
+        try {
+            return firmaMapper.toResponse(firmaRepository.save(firma));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("La Firma con el NIT '" + request.nit() + "' ya existe.");
+        }
     }
 
     @Override

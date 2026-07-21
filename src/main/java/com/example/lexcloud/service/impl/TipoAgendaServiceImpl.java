@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Tipo_Agenda;
 import com.example.lexcloud.repositorios.TipoAgenda_Repository;
 import com.example.lexcloud.service.TipoAgendaService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,16 @@ public class TipoAgendaServiceImpl implements TipoAgendaService {
 
     @Override
     public TipoAgendaResponseDTO guardar(TipoAgentaResquestDTO request) {
-        if(tipoAgendaRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("La Agenda con el nombre '" + request.nombre() + "' ya existe.");
+        if (tipoAgendaRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Tipo Agenda con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Agenda tipoAgenda = tipoAgendaMapper.toEntity(request);
-        return tipoAgendaMapper.toResponse(tipoAgendaRepository.save(tipoAgenda));
+        try {
+            return tipoAgendaMapper.toResponse(tipoAgendaRepository.save(tipoAgenda));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Agenda con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

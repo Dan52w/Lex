@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.TipoEmpleadoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Empleado;
 import com.example.lexcloud.repositorios.TipoEmpleado_Repository;
 import com.example.lexcloud.service.TipoEmpleadoService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class TipoEmpleadoServiceImpl implements TipoEmpleadoService {
     @Override
     public TipoEmpleadoResponseDTO guardar(TipoEmpleadoRequestDTO request) {
         if (tipoEmpleadoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un Tipo empleado con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Empleado tipoEmpleado = tipoEmpleadoMapper.toEntity(request);
-        return tipoEmpleadoMapper.toResponse(tipoEmpleadoRepository.save(tipoEmpleado));
+        try {
+            return tipoEmpleadoMapper.toResponse(tipoEmpleadoRepository.save(tipoEmpleado));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

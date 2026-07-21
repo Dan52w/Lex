@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstadoResponseDTO;
 import com.example.lexcloud.entidades.Estado;
 import com.example.lexcloud.repositorios.Estado_Repository;
 import com.example.lexcloud.service.EstadoService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +26,16 @@ public class EstadoServiceImpl implements EstadoService {
 
     @Override
     public EstadoResponseDTO guardar(EstadoRequestDTO request) {
-        // Validación: Evitar que existan dos estados con el mismo nombre
         if (estadoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un estado con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Estado con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Estado estado = estadoMapper.toEntity(request);
-        return estadoMapper.toResponse(estadoRepository.save(estado));
+        try {
+            return estadoMapper.toResponse(estadoRepository.save(estado));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Estado con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Vinculo;
 import com.example.lexcloud.repositorios.Vinculo_Repository;
 import com.example.lexcloud.service.VinculoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,16 @@ public class VinculoServiceImpl implements VinculoService {
 
     @Override
     public VinculoResponseDTO guardar(VinculoRequestDTO request) {
-        if(vinculoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("El Vinculo con el nombre '" + request.nombre() + "' ya existe.");
+        if (vinculoRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Vinculo con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Vinculo vinculo = vinculoMapper.toEntity(request);
-        return vinculoMapper.toResponse(vinculoRepository.save(vinculo));
+        try {
+            return vinculoMapper.toResponse(vinculoRepository.save(vinculo));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Vinculo con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

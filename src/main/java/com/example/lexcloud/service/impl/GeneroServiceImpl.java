@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.GeneroResponseDTO;
 import com.example.lexcloud.entidades.Genero;
 import com.example.lexcloud.repositorios.Genero_Repository;
 import com.example.lexcloud.service.GeneroService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class GeneroServiceImpl implements GeneroService {
     @Override
     public GeneroResponseDTO guardar(GeneroRequestDTO request) {
         if (generoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un genero con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Genero genero = generoMapper.toEntity(request);
-        return generoMapper.toResponse(generoRepository.save(genero));
+        try {
+            return generoMapper.toResponse(generoRepository.save(genero));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

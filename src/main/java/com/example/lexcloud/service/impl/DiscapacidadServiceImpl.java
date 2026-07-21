@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.DiscapacidadResponseDTO;
 import com.example.lexcloud.entidades.Discapacidad;
 import com.example.lexcloud.repositorios.Discapacidad_Repository;
 import com.example.lexcloud.service.DiscapacidadService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class DiscapacidadServiceImpl implements DiscapacidadService {
     @Override
     public DiscapacidadResponseDTO guardar(DiscapacidadRequestDTO request) {
         if (discapacidadRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe una discapacidad con el nombre: " + request.nombre());
+            throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Discapacidad discapacidad = discapacidadMapper.toEntity(request);
-        return discapacidadMapper.toResponse(discapacidadRepository.save(discapacidad));
+        try {
+            return discapacidadMapper.toResponse(discapacidadRepository.save(discapacidad));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

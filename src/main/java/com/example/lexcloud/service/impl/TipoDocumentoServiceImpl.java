@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Tipo_Documento;
 import com.example.lexcloud.repositorios.TipoDocumento_Repository;
 import com.example.lexcloud.service.TipoDocumentoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,16 @@ public class TipoDocumentoServiceImpl implements TipoDocumentoService {
 
     @Override
     public TipoDocumentoResponseDTO guardar(TipoDocumentoRequestDTO request) {
-        if(tipoDocumentoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("El Tipo documento con el nombre '" + request.nombre() + "' ya existe.");
+        if (tipoDocumentoRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Tipo Documento con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Documento tipoDocumento = tipoDocumentoMapper.toEntity(request);
-        return tipoDocumentoMapper.toResponse(tipoDocumentoRepository.save(tipoDocumento));
+        try {
+            return tipoDocumentoMapper.toResponse(tipoDocumentoRepository.save(tipoDocumento));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Documento con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

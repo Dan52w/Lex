@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.GradoEscolaridadResponseDTO;
 import com.example.lexcloud.entidades.Grado_Escolaridad;
 import com.example.lexcloud.repositorios.GradoEscolaridad_Repository;
 import com.example.lexcloud.service.GradoEscolaridadService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class GradoEscolaridadServiceImpl implements GradoEscolaridadService {
     @Override
     public GradoEscolaridadResponseDTO guardar(GradoEscolaridadRequestDTO request) {
         if (gradoEscolaridadRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un Grado de Esocolaridad con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Grado_Escolaridad gradoEscolaridad = gradoEscolaridadMapper.toEntity(request);
-        return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
+        try {
+            return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

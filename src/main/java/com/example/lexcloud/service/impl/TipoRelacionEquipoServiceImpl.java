@@ -8,6 +8,7 @@ import com.example.lexcloud.dto.response.TipoRelacionEquipoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Relacion_Equipo;
 import com.example.lexcloud.repositorios.TipoRelacionEquipo_Repository;
 import com.example.lexcloud.service.TipoRelacionEquipoService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +30,15 @@ public class TipoRelacionEquipoServiceImpl implements TipoRelacionEquipoService 
     @Override
     public TipoRelacionEquipoResponseDTO guardar(TipoRelacionEquipoRequestDTO request) {
         if (tipoRelacionEquipoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un Tipo relacion equipo con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Relacion_Equipo tipoRelacionEquipo = tipoRelacionEquipoMapper.toEntity(request);
-        return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
+        try {
+            return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

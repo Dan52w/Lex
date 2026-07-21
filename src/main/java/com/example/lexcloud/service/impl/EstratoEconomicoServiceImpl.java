@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstratoEconomicoResponseDTO;
 import com.example.lexcloud.entidades.Estrato_Economico;
 import com.example.lexcloud.repositorios.EstratoEconomico_Repository;
 import com.example.lexcloud.service.EstratoEconomicoService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class EstratoEconomicoServiceImpl implements EstratoEconomicoService {
     @Override
     public EstratoEconomicoResponseDTO guardar(EstratoEconomicoRequestDTO request) {
         if (estratoEconomicoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe una discapacidad con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Estrato economico con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Estrato_Economico estratoEconomico = estratoEconomicoMapper.toEntity(request);
-        return estratoEconomicoMapper.toResponse(estratoEconomicoRepository.save(estratoEconomico));
+        try {
+            return estratoEconomicoMapper.toResponse(estratoEconomicoRepository.save(estratoEconomico));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Estrato economico con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

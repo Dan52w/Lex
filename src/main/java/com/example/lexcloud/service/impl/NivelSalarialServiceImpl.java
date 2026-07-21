@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.NivelSalarialResponseDTO;
 import com.example.lexcloud.entidades.Nivel_Salarial;
 import com.example.lexcloud.repositorios.NivelSalarial_Repository;
 import com.example.lexcloud.service.NivelSalarialService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class NivelSalarialServiceImpl implements NivelSalarialService {
     @Override
     public NivelSalarialResponseDTO guardar(NivelSalarialRequestDTO request) {
         if (nivelSalarialRepository.findByRango(request.rango()).isPresent()) {
-            throw new IllegalStateException("Ya existe un nivel salarial con el nombre: " + request.rango());
+            throw new IllegalStateException("El Nivel Salarial con el nombre '" + request.rango() + "' ya existe.");
         }
 
         Nivel_Salarial nivelSalarial = nivelSalarialMapper.toEntity(request);
-        return nivelSalarialMapper.toResponse(nivelSalarialRepository.save(nivelSalarial));
+        try {
+            return nivelSalarialMapper.toResponse(nivelSalarialRepository.save(nivelSalarial));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Nivel Salarial con el nombre '" + request.rango() + "' ya existe.");
+        }
     }
 
     @Override

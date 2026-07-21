@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.Tipo_Caso;
 import com.example.lexcloud.repositorios.TipoCaso_Repository;
 import com.example.lexcloud.service.TipoCasoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,16 @@ public class TipoCasoServiceImpl implements TipoCasoService {
 
     @Override
     public TipoCasoResponseDTO guardar(TipoCasoRequestDTO request) {
-        if(tipoCasoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalArgumentException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
+        if (tipoCasoRepository.findByNombre(request.nombre()).isPresent()) {
+            throw new IllegalStateException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Caso tipoCaso = tipoCasoMapper.toEntity(request);
-        return tipoCasoMapper.toResponse(tipoCasoRepository.save(tipoCaso));
+        try {
+            return tipoCasoMapper.toResponse(tipoCasoRepository.save(tipoCaso));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

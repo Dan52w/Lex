@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.TipoViviendaResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Vivienda;
 import com.example.lexcloud.repositorios.TipoVivienda_Repository;
 import com.example.lexcloud.service.TipoViviendaService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +28,15 @@ public class TipoViviendaServiceImpl implements TipoViviendaService {
     @Override
     public TipoViviendaResponseDTO guardar(TipoViviendaRequestDTO request) {
         if (tipoViviendaRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("Ya existe un Tipo vivienda con el nombre: " + request.nombre());
+            throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
         }
 
         Tipo_Vivienda tipoVivienda = tipoViviendaMapper.toEntity(request);
-        return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
+        try {
+            return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
+        }
     }
 
     @Override

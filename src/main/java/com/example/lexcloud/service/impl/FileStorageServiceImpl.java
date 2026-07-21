@@ -22,18 +22,24 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public String guardarArchivo(MultipartFile archivo, String nombreCarpeta) {
         try {
-            String originalName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename().replace(" ", "_") : "archivo";
+            String originalName = archivo.getOriginalFilename() != null
+                    ? archivo.getOriginalFilename().replace(" ", "_")
+                    : "archivo";
             String nombreArchivo = System.currentTimeMillis() + "_" + originalName;
 
             String rutaVirtual = nombreCarpeta + "/" + nombreArchivo;
-            String urlFinal = supabaseUrl + rutaVirtual; // Cambio a variable dinámica
+            String urlFinal = supabaseUrl + rutaVirtual;
 
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + supabaseKey.trim()); // Cambio a variable dinámica
-            headers.set("apikey", supabaseKey.trim());                    // Cambio a variable dinámica
+            headers.set("Authorization", "Bearer " + supabaseKey.trim());
+            headers.set("apikey", supabaseKey.trim());
 
-            headers.setContentType(MediaType.parseMediaType(archivo.getContentType()));
+            // Fallback seguro si el cliente no envía Content-Type
+            String contentType = archivo.getContentType() != null
+                    ? archivo.getContentType()
+                    : "application/octet-stream";
+            headers.setContentType(MediaType.parseMediaType(contentType));
 
             HttpEntity<byte[]> entity = new HttpEntity<>(archivo.getBytes(), headers);
 

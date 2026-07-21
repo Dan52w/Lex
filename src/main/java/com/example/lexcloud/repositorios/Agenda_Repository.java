@@ -55,4 +55,3 @@ public interface Agenda_Repository extends JpaRepository<Agenda, Integer> {
             "ORDER BY a.fechaExp ASC")
     List<Agenda> findProximasCitasByAbogado(@Param("abogadoId") Integer abogadoId);
 }
-}

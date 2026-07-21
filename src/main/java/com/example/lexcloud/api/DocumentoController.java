@@ -66,22 +66,22 @@ public class DocumentoController {
 
     @GetMapping("/descargar/{id}")
     public ResponseEntity<Resource> descargar(@PathVariable Integer id) {
-        // 1. Obtenemos los datos (donde tipoDocumento ahora es "pdf", "jpg", etc.)
         DocumentoResponseDTO dto = documentoService.buscarPorId(id);
-
-        // 2. Cargamos el recurso físico
         Resource recurso = fileStorageService.cargarArchivo(dto.direccion());
 
-        // 3. Construimos el nombre del archivo asegurando que tenga la extensión
-        // Si el nombre ya tiene punto, lo dejamos; si no, se lo ponemos.
-        String nombreConExtension = dto.nombre().toLowerCase().endsWith("." + dto.tipoDocumento().toLowerCase())
-                ? dto.nombre()
-                : dto.nombre() + "." + dto.tipoDocumento();
+        // La extensión real del archivo está en la ruta almacenada, no en la categoría (tipoDocumento)
+        String extension = extraerExtension(dto.direccion());
 
-        // 4. Mapeo básico de Content-Type según tu extensión
-        String mediaType = switch (dto.tipoDocumento().toLowerCase()) {
+        String nombreConExtension = (!extension.isEmpty() && !dto.nombre().toLowerCase().endsWith("." + extension))
+                ? dto.nombre() + "." + extension
+                : dto.nombre();
+
+        String mediaType = switch (extension) {
             case "pdf" -> "application/pdf";
+            case "doc" -> "application/msword";
             case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xls" -> "application/vnd.ms-excel";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             case "jpg", "jpeg" -> "image/jpeg";
             case "png" -> "image/png";
             default -> "application/octet-stream";
@@ -91,6 +91,13 @@ public class DocumentoController {
                 .contentType(MediaType.parseMediaType(mediaType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombreConExtension + "\"")
                 .body(recurso);
+    }
+
+    private String extraerExtension(String direccion) {
+        if (direccion == null) return "";
+        int lastDot = direccion.lastIndexOf('.');
+        if (lastDot < 0 || lastDot == direccion.length() - 1) return "";
+        return direccion.substring(lastDot + 1).toLowerCase();
     }
 
     @DeleteMapping("/{id}")

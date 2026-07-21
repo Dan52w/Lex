@@ -7,6 +7,7 @@ import com.example.lexcloud.entidades.*;
 import com.example.lexcloud.repositorios.*;
 import com.example.lexcloud.service.CasoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,13 +57,11 @@ public class CasoServiceImpl implements CasoService {
     public CasoResponseDTO guardar(CasoRequestDTO request) {
         Caso caso = casoMapper.toEntity(request);
 
-        // 1. Relaciones obligatorias
         caso.setEstado(estadoRepository.findById(request.idEstado())
                 .orElseThrow(() -> new EntityNotFoundException("Estado no encontrado")));
         caso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
                 .orElseThrow(() -> new EntityNotFoundException("Subtipo no encontrado")));
 
-        // 2. Manejo de Caso Padre (Por defecto ID 1 si viene null)
         Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
         Caso padre = casoRepository.findById(idPadreEfectivo)
                 .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
@@ -71,63 +70,31 @@ public class CasoServiceImpl implements CasoService {
         caso.setFirma(firmaRepository.findById(request.idFirma())
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
 
-        // 3. Manejo de Radicado Interno (Valor temporal 100% NÚMERICO de 10 dígitos)
-        boolean necesitaGenerarRadicadoInterno = (caso.getRadicadoInterno() == null || caso.getRadicadoInterno().trim().isEmpty());
+        boolean necesitaGenerarRadicadoInterno =
+                (caso.getRadicadoInterno() == null || caso.getRadicadoInterno().trim().isEmpty());
+        boolean necesitaGenerarRadicadoJudicial =
+                (caso.getRadicadoJudicial() == null ||
+                        caso.getRadicadoJudicial().trim().equals("0") ||
+                        caso.getRadicadoJudicial().trim().isEmpty());
+
+        // Inserción con radicados temporales, con reintentos ante colisión
+        Caso casoGuardado = guardarConRadicadosTemporales(caso, necesitaGenerarRadicadoInterno, necesitaGenerarRadicadoJudicial);
+
+        // Reemplazo de los valores temporales por los radicados definitivos según el ID real asignado
         if (necesitaGenerarRadicadoInterno) {
-            // Genera una cadena numórica temporal de exactamente 10 dígitos para no violar chk_radicado_interno_numerico
-            long tempNum = Math.abs(System.nanoTime() % 10000000000L);
-            String tempRadicado = String.format("%010d", tempNum);
-            caso.setRadicadoInterno(tempRadicado);
-        }
-
-        // 4. Manejo de Radicado Judicial (Valor temporal 100% NÚMERICO de 23 dígitos)
-        boolean necesitaGenerarRadicadoJudicial = (caso.getRadicadoJudicial() == null ||
-                caso.getRadicadoJudicial().trim().equals("0") ||
-                caso.getRadicadoJudicial().trim().isEmpty());
-
-        if (necesitaGenerarRadicadoJudicial) {
-            // Rellena temporalmente a 23 dígitos numéricos usando ceros a la izquierda
-            String radInternoTemp = caso.getRadicadoInterno();
-            caso.setRadicadoJudicial(String.format("%23s", radInternoTemp).replace(' ', '0'));
-        }
-
-        // Guardado inicial para obtener el ID secuencial real de la base de datos
-        Caso casoGuardado = casoRepository.saveAndFlush(caso);
-
-        // 5. Reemplazo de los valores temporales por los radicados definitivos basados en el ID real asignado
-        if (necesitaGenerarRadicadoInterno) {
-            // Formatea el ID asignado a 10 dígitos numéricos (ej. "0000000005")
             casoGuardado.setRadicadoInterno(String.format("%010d", casoGuardado.getId()));
         }
-
         if (necesitaGenerarRadicadoJudicial) {
-            // Formatea el radicado judicial definitivo a 23 dígitos numéricos basado en el radicado interno
             String radInternoFinal = casoGuardado.getRadicadoInterno();
             casoGuardado.setRadicadoJudicial(String.format("%23s", radInternoFinal).replace(' ', '0'));
         }
 
-        // Guardado final con radicados procesados
         casoGuardado = casoRepository.save(casoGuardado);
 
-        // 6. Vínculo automático con el Cliente
         Cliente cliente = clienteRepository.getReferenceById(request.idCliente());
         crearVinculo(casoGuardado, request.idPersonaCreador(), cliente, true);
 
         return casoMapper.toResponse(casoGuardado);
-    }
-
-    private void crearVinculo(Caso caso, Integer idPersona, Cliente cliente, boolean autorizado) {
-        Persona persona = personaRepository.getReferenceById(idPersona);
-        Vinculo tipoVinculo = vinculoRepository.getReferenceById(2);
-
-        Vinculo_Caso vinculoCaso = new Vinculo_Caso();
-        vinculoCaso.setCaso(caso);
-        vinculoCaso.setPersonaFirma(persona);
-        vinculoCaso.setCliente(cliente);
-        vinculoCaso.setVinculo(tipoVinculo);
-        vinculoCaso.setAutorizado(autorizado);
-
-        vinculoCasoRepository.save(vinculoCaso);
     }
 
     @Override
@@ -172,15 +139,6 @@ public class CasoServiceImpl implements CasoService {
             return casoMapper.toResponse(casoActualizado);
 
         }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));
-    }
-
-    private void registrarCambioEnHistorial(Caso caso, Integer idPersona, String descripcion) {
-        Historial_Cambio historial = new Historial_Cambio();
-        historial.setCaso(caso);
-        historial.setPersona(personaRepository.getReferenceById(idPersona));
-        historial.setDescripcion(descripcion);
-        historial.setFecha(LocalDate.now());
-        historialCambioRepository.save(historial);
     }
 
     // Métodos de consulta...
@@ -296,5 +254,56 @@ public class CasoServiceImpl implements CasoService {
                 .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
         caso.setActivo(false);
         casoRepository.save(caso);
+    }
+
+    /**
+     * Inserta el caso generando radicados temporales únicos.
+     * Reintenta si el valor aleatorio temporal colisiona con uno existente
+     * (poco probable, pero posible bajo alta concurrencia).
+     */
+    private Caso guardarConRadicadosTemporales(Caso caso, boolean generarInterno, boolean generarJudicial) {
+        final int MAX_INTENTOS = 3;
+        DataIntegrityViolationException ultimoError = null;
+
+        for (int intento = 0; intento < MAX_INTENTOS; intento++) {
+            try {
+                if (generarInterno) {
+                    long tempNum = Math.abs((System.nanoTime() + intento) % 10_000_000_000L);
+                    caso.setRadicadoInterno(String.format("%010d", tempNum));
+                }
+                if (generarJudicial) {
+                    String radInternoTemp = caso.getRadicadoInterno();
+                    caso.setRadicadoJudicial(String.format("%23s", radInternoTemp).replace(' ', '0'));
+                }
+                return casoRepository.saveAndFlush(caso);
+            } catch (DataIntegrityViolationException ex) {
+                ultimoError = ex; // reintenta con un nuevo valor temporal
+            }
+        }
+        throw new IllegalStateException(
+                "No se pudo generar un radicado único tras varios intentos, intente nuevamente.", ultimoError);
+    }
+
+    private void crearVinculo(Caso caso, Integer idPersona, Cliente cliente, boolean autorizado) {
+        Persona persona = personaRepository.getReferenceById(idPersona);
+        Vinculo tipoVinculo = vinculoRepository.getReferenceById(2);
+
+        Vinculo_Caso vinculoCaso = new Vinculo_Caso();
+        vinculoCaso.setCaso(caso);
+        vinculoCaso.setPersonaFirma(persona);
+        vinculoCaso.setCliente(cliente);
+        vinculoCaso.setVinculo(tipoVinculo);
+        vinculoCaso.setAutorizado(autorizado);
+
+        vinculoCasoRepository.save(vinculoCaso);
+    }
+
+    private void registrarCambioEnHistorial(Caso caso, Integer idPersona, String descripcion) {
+        Historial_Cambio historial = new Historial_Cambio();
+        historial.setCaso(caso);
+        historial.setPersona(personaRepository.getReferenceById(idPersona));
+        historial.setDescripcion(descripcion);
+        historial.setFecha(LocalDate.now());
+        historialCambioRepository.save(historial);
     }
 }

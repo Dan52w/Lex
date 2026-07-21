@@ -14,7 +14,7 @@ public class Estado_Civil {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 50, unique = true)
     private String nombre;
 
     @OneToMany(mappedBy = "estadoCivil")

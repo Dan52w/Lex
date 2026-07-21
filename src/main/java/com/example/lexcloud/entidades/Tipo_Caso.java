@@ -11,7 +11,7 @@ public class Tipo_Caso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "nombre")
+    @Column(name = "nombre", nullable = false, length = 100, unique = true)
     private String nombre;
 
     // 'mappedBy' debe coincidir con el nombre del atributo en la clase Subtipo_Caso

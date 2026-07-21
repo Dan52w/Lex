@@ -16,7 +16,7 @@ public class Tipo_Cliente {
     private Integer id;
     @Size(max = 20)
     @NotNull
-    @Column(name = "nombre", nullable = false, length = 20)
+    @Column(name = "nombre", nullable = false, length = 20, unique = true)
     private String nombre;
 
     @OneToMany(mappedBy = "tipoCliente")

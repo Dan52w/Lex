@@ -18,6 +18,16 @@ public class Documento {
     @Column(name = "tamanio", nullable = false)
     private Long tamanio;
 
+    // P1-B7 papelera: null = activo; con fecha = en papelera (archivo y
+    // fila se conservan). El borrado físico solo lo hace un admin con
+    // eliminarDefinitivo, y queda auditado. Sin estos campos el borrado
+    // de P0 era físico e irreversible.
+    @Column(name = "eliminado_en")
+    private java.time.LocalDateTime eliminadoEn;
+
+    @Column(name = "eliminado_por")
+    private Integer eliminadoPor;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_caso", nullable = false)
     private Caso caso;
@@ -76,6 +86,22 @@ public class Documento {
 
     public Long getTamanio() {
         return tamanio;
+    }
+
+    public java.time.LocalDateTime getEliminadoEn() {
+        return eliminadoEn;
+    }
+
+    public void setEliminadoEn(java.time.LocalDateTime eliminadoEn) {
+        this.eliminadoEn = eliminadoEn;
+    }
+
+    public Integer getEliminadoPor() {
+        return eliminadoPor;
+    }
+
+    public void setEliminadoPor(Integer eliminadoPor) {
+        this.eliminadoPor = eliminadoPor;
     }
 
     public void setTamanio(Long tamanio) {

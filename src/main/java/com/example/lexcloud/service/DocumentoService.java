@@ -7,6 +7,10 @@ import java.util.List;
 public interface DocumentoService {
     DocumentoResponseDTO guardar(DocumentoRequestDTO request, String direccionArchivo, long pesoEnBytes);
     List<DocumentoResponseDTO> listarPorCaso(Integer idCaso);
+    org.springframework.data.domain.Page<DocumentoResponseDTO> listarPorCaso(Integer idCaso, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<DocumentoResponseDTO> listarPapelera(Integer firmaId, org.springframework.data.domain.Pageable pageable);
+    void restaurar(Integer id);
+    void eliminarDefinitivo(Integer id);
     DocumentoResponseDTO buscarPorId(Integer id);
     void eliminar(Integer id);
     /**

@@ -7,6 +7,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 
 @Repository
@@ -32,10 +35,13 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
             "JOIN FETCH a.persona " +
             "WHERE a.persona.activo = true " +
             "AND a.firma.id = :firmaId " +
-            "AND LOWER(CONCAT(a.persona.nombre, ' ', a.persona.apellido)) LIKE LOWER(CONCAT('%', :nombre, '%'))")
+            "AND LOWER(CONCAT(a.persona.nombre, ' ', a.persona.apellido)) LIKE LOWER(CONCAT('%', :nombre, '%')) ESCAPE '\\'")
     List<Abogado> findByAbogadoByNombre(@Param("firmaId") Integer firmaId, @Param("nombre") String nombre);
 
     // 4. Listar todos los abogados activos de una firma
     @Query("SELECT a FROM Abogado a WHERE a.firma.id = :firmaId AND a.persona.activo = true")
     List<Abogado> findByAbogadosByFirmaActivos(@Param("firmaId") Integer firmaId);
+
+    @Query("SELECT a FROM Abogado a WHERE a.firma.id = :firmaId AND a.persona.activo = true")
+    Page<Abogado> findByAbogadosByFirmaActivos(@Param("firmaId") Integer firmaId, Pageable pageable);
 }

@@ -9,6 +9,8 @@ import java.util.Optional;
 public interface ClienteService {
     ClienteResponseDTO guardar(ClienteRequestDTO request);
     List<ClienteResponseDTO> listarFirma(Integer idFirma);
+    org.springframework.data.domain.Page<ClienteResponseDTO> listarFirma(Integer idFirma, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro, org.springframework.data.domain.Pageable pageable);
     List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro);
     Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma);
     Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma);

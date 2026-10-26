@@ -58,6 +58,13 @@ public class HistorialCambioServiceImpl implements HistorialCambioService {
 
     @Override
     @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso, org.springframework.data.domain.Pageable pageable) {
+        currentUser.requireCaso(idCaso);
+        return historialRepository.findByCasoId(idCaso, pageable).map(historialMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso) {
         currentUser.requireCaso(idCaso);
         // Obtenemos los cambios del más reciente al más antiguo

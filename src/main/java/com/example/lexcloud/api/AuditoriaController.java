@@ -6,6 +6,7 @@ import com.example.lexcloud.security.CurrentUser;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,11 +30,14 @@ public class AuditoriaController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/mi-firma")
-    public List<AuditoriaSeguridad> listarMiFirma() {
+    public PageResponse<AuditoriaSeguridad> listarMiFirma(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         Integer firmaId = currentUser.firmaId();
         if (firmaId == null) {
-            return repository.findAll();
+            // Admin global sin firma: pagina sobre todos los registros.
+            return PageResponse.of(repository.findAll(Pagination.of(page, size)));
         }
-        return repository.findByFirmaIdOrderByFechaDesc(firmaId);
+        return PageResponse.of(repository.findByFirmaIdOrderByFechaDesc(firmaId, Pagination.of(page, size)));
     }
 }

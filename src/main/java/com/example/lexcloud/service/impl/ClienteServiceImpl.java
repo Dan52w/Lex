@@ -6,7 +6,9 @@ import com.example.lexcloud.dto.response.ClienteResponseDTO;
 import com.example.lexcloud.entidades.*;
 import com.example.lexcloud.repositorios.Cliente_Repository;
 import com.example.lexcloud.security.CurrentUser;
+import com.example.lexcloud.security.AuditoriaService;
 import com.example.lexcloud.service.ClienteService;
+import com.example.lexcloud.util.SearchTerm;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
@@ -24,6 +26,7 @@ public class ClienteServiceImpl implements ClienteService {
     private final Cliente_Repository clienteRepository;
     private final ClienteMapper clienteMapper;
     private final CurrentUser currentUser;
+    private final AuditoriaService auditoriaService;
 
     @PersistenceContext
     private final EntityManager entityManager;
@@ -32,11 +35,13 @@ public class ClienteServiceImpl implements ClienteService {
     public ClienteServiceImpl(Cliente_Repository clienteRepository,
                               ClienteMapper clienteMapper,
                               EntityManager entityManager,
-                              CurrentUser currentUser) {
+                              CurrentUser currentUser,
+                              AuditoriaService auditoriaService) {
         this.clienteRepository = clienteRepository;
         this.clienteMapper = clienteMapper;
         this.entityManager = entityManager;
         this.currentUser = currentUser;
+        this.auditoriaService = auditoriaService;
     }
 
     @Override
@@ -109,7 +114,26 @@ public class ClienteServiceImpl implements ClienteService {
             nuevoCliente.setDiscapacidad(entityManager.getReference(Discapacidad.class, request.idDiscapacidad()));
         }
 
-        return clienteMapper.toResponse(clienteRepository.save(nuevoCliente));
+        ClienteResponseDTO creado = clienteMapper.toResponse(clienteRepository.save(nuevoCliente));
+        // P1-A1: creación de cliente auditada (autor = token).
+        auditoriaService.registrar(currentUser.personaId(), firmaId, "CLIENTE_CREADO", "cliente", creado.id(), null);
+        return creado;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ClienteResponseDTO> listarFirma(Integer idFirma, org.springframework.data.domain.Pageable pageable) {
+        Integer firmaToken = currentUser.isAdmin() && idFirma != null
+                ? idFirma : currentUser.requireFirmaId();
+        return clienteRepository.findAllByFirmaId(firmaToken, pageable).map(clienteMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro, org.springframework.data.domain.Pageable pageable) {
+        Integer firmaToken = currentUser.isAdmin() && idFirma != null
+                ? idFirma : currentUser.requireFirmaId();
+        return clienteRepository.superBuscador(SearchTerm.escape(filtro), firmaToken, pageable).map(clienteMapper::toResponse);
     }
 
     @Override
@@ -127,7 +151,7 @@ public class ClienteServiceImpl implements ClienteService {
         // P0-B2: idFirma del cliente se ignora.
         Integer firmaToken = currentUser.isAdmin() && idFirma != null
                 ? idFirma : currentUser.requireFirmaId();
-        return clienteMapper.toResponseList(clienteRepository.superBuscador(filtro, firmaToken));
+        return clienteMapper.toResponseList(clienteRepository.superBuscador(SearchTerm.escape(filtro), firmaToken));
     }
 
     @Override
@@ -199,7 +223,10 @@ public class ClienteServiceImpl implements ClienteService {
         clienteExistente.setDiscapacidad(request.idDiscapacidad() != null ?
                 entityManager.getReference(Discapacidad.class, request.idDiscapacidad()) : null);
 
-        return clienteMapper.toResponse(clienteRepository.save(clienteExistente));
+        ClienteResponseDTO actualizado = clienteMapper.toResponse(clienteRepository.save(clienteExistente));
+        // P1-A1: edición de cliente auditada.
+        auditoriaService.registrar(currentUser.personaId(), clienteExistente.getFirma().getId(), "CLIENTE_EDITADO", "cliente", id, null);
+        return actualizado;
     }
 
     @Override
@@ -214,5 +241,7 @@ public class ClienteServiceImpl implements ClienteService {
 
         cliente.setActivo(false);
         clienteRepository.save(cliente);
+        // P1-A1: borrado lógico de cliente auditado.
+        auditoriaService.registrar(currentUser.personaId(), cliente.getFirma().getId(), "CLIENTE_DESACTIVADO", "cliente", id, null);
     }
 }

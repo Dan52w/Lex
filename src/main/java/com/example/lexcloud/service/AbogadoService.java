@@ -10,6 +10,7 @@ public interface AbogadoService {
     AbogadoResponseDTO guardar(AbogadoRequestDTO request);
     Optional<AbogadoResponseDTO> buscarPorId(Integer id);
     List<AbogadoResponseDTO> listarTodos(Integer idFirma);
+    org.springframework.data.domain.Page<AbogadoResponseDTO> listarTodos(Integer idFirma, org.springframework.data.domain.Pageable pageable);
     List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad);
     List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre);
     Optional<AbogadoResponseDTO> buscarPorCc(String cc, Integer idFirma);

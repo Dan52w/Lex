@@ -70,8 +70,32 @@ public class DocumentoController {
     }
 
     @GetMapping("/caso/{idCaso}")
-    public ResponseEntity<List<DocumentoResponseDTO>> listarPorCaso(@PathVariable Integer idCaso) {
-        return ResponseEntity.ok(documentoService.listarPorCaso(idCaso));
+    public ResponseEntity<PageResponse<DocumentoResponseDTO>> listarPorCaso(
+            @PathVariable Integer idCaso,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(documentoService.listarPorCaso(idCaso, Pagination.of(page, size))));
+    }
+
+    // P1-B7 papelera: documentos eliminados (no borrados físicamente).
+    @GetMapping("/papelera")
+    public ResponseEntity<PageResponse<DocumentoResponseDTO>> listarPapelera(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(documentoService.listarPapelera(currentUser.firmaId(), Pagination.of(page, size))));
+    }
+
+    @PutMapping("/{id}/restaurar")
+    public ResponseEntity<Void> restaurar(@PathVariable Integer id) {
+        documentoService.restaurar(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Solo admin (lo comprueba el servicio): borrado físico definitivo.
+    @DeleteMapping("/{id}/definitivo")
+    public ResponseEntity<Void> eliminarDefinitivo(@PathVariable Integer id) {
+        documentoService.eliminarDefinitivo(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/descargar/{id}")

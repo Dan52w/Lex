@@ -24,9 +24,12 @@ public class CasoController {
     }
 
     // P0-B2: ruta canónica sin ids del cliente (persona del token).
+    // P1-B2: paginado (el front /caso ya usa apiPage con PAGE_SIZE 20).
     @GetMapping("/mis-casos")
-    public ResponseEntity<List<CasoResponseDTO>> listarMisCasos() {
-        return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(currentUser.personaId()));
+    public ResponseEntity<PageResponse<CasoResponseDTO>> listarMisCasos(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(casoService.listarVinculadosPersonaAutorizado(currentUser.personaId(), Pagination.of(page, size))));
     }
 
     // Crear un nuevo caso
@@ -60,6 +63,20 @@ public class CasoController {
     @GetMapping("/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona) {
         return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(idPersona));
+    }
+
+    // P1: ruta canónica para la vista equipo/[id] del front.
+    // GET /api/casos/miembro/{idAbogado} — idAbogado es el id del
+    // recurso abogado (el que viaja en la URL /equipo/{id}), NO el
+    // idPersona. Devuelve los casos con vínculo autorizado de ese
+    // miembro, solo si pertenece a la misma firma que el token
+    // (admin global permitido); otra firma da 403. Sustituye a
+    // /api/casos/persona/{idPersona} en esa vista: esa ruta devuelve
+    // los casos del usuario del token, no los del miembro visitado.
+    // Sin paginación a propósito: el front espera un array.
+    @GetMapping("/miembro/{idAbogado}")
+    public ResponseEntity<List<CasoResponseDTO>> listarPorMiembro(@PathVariable Integer idAbogado) {
+        return ResponseEntity.ok(casoService.listarCasosDeMiembro(idAbogado));
     }
 
     // Listar casos autorizados por Abogado y Cliente (Uso interno)

@@ -1,0 +1,11 @@
+# Dependabot (P1-B6): actualizaciones semanales de dependencias.
+# El front tiene su propio dependabot.yml en lex-front/.github/.
+# Limitación: Dependabot no tiene ecosistema pnpm; el front se cubre con
+# "npm", que lee package.json (el lock de pnpm no se actualiza solo).
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

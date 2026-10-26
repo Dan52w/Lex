@@ -10,6 +10,7 @@ public record RegisterRequestDTO(
         Integer idPersona,
         @Email(message = "Correo inválido")
         @NotBlank(message = "El correo es obligatorio")
+        @Size(max = 255, message = "El campo no puede superar 255 caracteres")
         String correo,
         // P0-B7: mínimo 10 (12 para admin, validado en AuthServiceImpl).
         @NotBlank(message = "La contraseña es obligatoria")

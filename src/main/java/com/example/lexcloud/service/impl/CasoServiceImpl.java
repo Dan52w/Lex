@@ -5,6 +5,7 @@ import com.example.lexcloud.dto.request.CasoRequestDTO;
 import com.example.lexcloud.dto.response.CasoResponseDTO;
 import com.example.lexcloud.entidades.*;
 import com.example.lexcloud.repositorios.*;
+import com.example.lexcloud.security.AuditoriaService;
 import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.CasoService;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,8 +30,10 @@ public class CasoServiceImpl implements CasoService {
     private final Cliente_Repository clienteRepository;
     private final HistorialCambio_Repository historialCambioRepository;
     private final Firma_Repository firmaRepository;
+    private final Abogado_Repository abogadoRepository;
     private final CasoMapper casoMapper;
     private final CurrentUser currentUser;
+    private final AuditoriaService auditoriaService;
 
     public CasoServiceImpl(Caso_Repository casoRepository,
                            Estado_Repository estadoRepository,
@@ -41,8 +44,10 @@ public class CasoServiceImpl implements CasoService {
                            Vinculo_Repository vinculoRepository,
                            Cliente_Repository clienteRepository,
                            Firma_Repository firmaRepository,
+                           Abogado_Repository abogadoRepository,
                            CasoMapper casoMapper,
-                           CurrentUser currentUser) {
+                           CurrentUser currentUser,
+                           AuditoriaService auditoriaService) {
         this.casoRepository = casoRepository;
         this.estadoRepository = estadoRepository;
         this.subtipoRepository = subtipoRepository;
@@ -52,8 +57,10 @@ public class CasoServiceImpl implements CasoService {
         this.vinculoRepository = vinculoRepository;
         this.clienteRepository = clienteRepository;
         this.firmaRepository = firmaRepository;
+        this.abogadoRepository = abogadoRepository;
         this.casoMapper = casoMapper;
         this.currentUser = currentUser;
+        this.auditoriaService = auditoriaService;
     }
 
     @Override
@@ -119,6 +126,8 @@ public class CasoServiceImpl implements CasoService {
         // Excepción documentada de P0-B4: el creador recibe vínculo autorizado
         // a su propio caso nuevo (no es auto-autorizarse a un caso ajeno).
         crearVinculo(casoGuardado, currentUser.personaId(), cliente, true);
+        // P1-A1: creación de caso auditada (autor = token).
+        auditoriaService.registrar(currentUser.personaId(), casoGuardado.getFirma() != null ? casoGuardado.getFirma().getId() : null, "CASO_CREADO", "caso", casoGuardado.getId(), null);
 
         return casoMapper.toResponse(casoGuardado);
     }
@@ -164,12 +173,49 @@ public class CasoServiceImpl implements CasoService {
 
             registrarCambioEnHistorial(casoActualizado, currentUser.personaId(),
                     "Actualización de datos. Estado anterior: " + estadoAnterior + ". Título anterior: " + nombreCasoAnterior);
+            // P1-A1: edición de caso auditada (el detalle se trunca a 500 en el servicio).
+            auditoriaService.registrar(currentUser.personaId(), casoActualizado.getFirma() != null ? casoActualizado.getFirma().getId() : null, "CASO_EDITADO", "caso", id,
+                    "Estado anterior: " + estadoAnterior + ". Título anterior: " + nombreCasoAnterior);
             return casoMapper.toResponse(casoActualizado);
 
         }).orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + id));
     }
 
     // Métodos de consulta...
+    @Override
+    public List<CasoResponseDTO> listarCasosDeMiembro(Integer idAbogado) {
+        // P1: el miembro se resuelve por su id de ABOGADO. Sin registro
+        // de abogado no hay persona que consultar (404, no 500).
+        Abogado miembro = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        // Misma firma que el token (admin global permitido, como en
+        // CurrentUser.requireFirma); otra firma da 403. Un miembro sin
+        // firma no se expone a un no-admin (la columna es NOT NULL,
+        // esto es defensa, no el camino normal).
+        if (miembro.getFirma() == null) {
+            if (!currentUser.isAdmin()) {
+                throw new SecurityException("No tiene permisos para realizar esta acción");
+            }
+        } else {
+            currentUser.requireFirma(miembro.getFirma().getId());
+        }
+        if (miembro.getPersona() == null) {
+            throw new EntityNotFoundException("Abogado no Encontrado");
+        }
+        // Los casos son los del miembro (vínculo autorizado + activo,
+        // como en listarVinculadosPersonaAutorizado), NO los del token:
+        // esa es justo la diferencia con /persona/{idPersona}.
+        return casoRepository.findCasosAutorizadosPorPersona(miembro.getPersona().getId()).stream()
+                .filter(c -> c.getId() != 1)
+                .map(casoMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona, org.springframework.data.domain.Pageable pageable) {
+        return casoRepository.findCasosAutorizadosPorPersona(currentUser.personaId(), pageable).map(casoMapper::toResponse);
+    }
+
     @Override
     public List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona) {
         return casoRepository.findCasosAutorizadosPorPersona(currentUser.personaId()).stream()
@@ -188,7 +234,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona) {
-        return casoRepository.buscarPorTituloParcial(titulo, currentUser.personaId()).stream()
+        return casoRepository.buscarPorTituloParcial(com.example.lexcloud.util.SearchTerm.escape(titulo), currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -248,7 +294,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> superBuscador(String termino, Integer idPersona) {
-        return casoRepository.superBuscador(termino, currentUser.personaId()).stream()
+        return casoRepository.superBuscador(com.example.lexcloud.util.SearchTerm.escape(termino), currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -264,7 +310,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona) {
-        return casoRepository.buscarPorClienteNombreOIdentificacion(termino, currentUser.personaId()).stream()
+        return casoRepository.buscarPorClienteNombreOIdentificacion(com.example.lexcloud.util.SearchTerm.escape(termino), currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());

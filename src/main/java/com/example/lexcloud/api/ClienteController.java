@@ -24,9 +24,12 @@ public class ClienteController {
     }
 
     // P0-B2: ruta canónica sin ids del cliente (firma del token).
+    // P1-B2: devuelve PageResponse (máx. 50 por página, ver Pagination).
     @GetMapping("/mi-firma")
-    public ResponseEntity<List<ClienteResponseDTO>> listarMiFirma() {
-        return ResponseEntity.ok(clienteService.listarFirma(currentUser.firmaId()));
+    public ResponseEntity<PageResponse<ClienteResponseDTO>> listarMiFirma(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(clienteService.listarFirma(currentUser.firmaId(), Pagination.of(page, size))));
     }
 
     // 1. Guardar un nuevo Cliente
@@ -37,17 +40,22 @@ public class ClienteController {
 
     // 2. Listar todos los clientes activos de una firma
     @GetMapping("/firma/{idFirma}")
-    public ResponseEntity<List<ClienteResponseDTO>> listarPorFirma(@PathVariable Integer idFirma) {
-        return ResponseEntity.ok(clienteService.listarFirma(idFirma));
+    public ResponseEntity<PageResponse<ClienteResponseDTO>> listarPorFirma(
+            @PathVariable Integer idFirma,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(clienteService.listarFirma(idFirma, Pagination.of(page, size))));
     }
 
     // 3. Super Buscador Multi-filtro dentro de una firma
     // Ejemplo: /api/clientes/buscar?idFirma=1&filtro=Perez
     @GetMapping("/buscar")
-    public ResponseEntity<List<ClienteResponseDTO>> buscarClientes(
+    public ResponseEntity<PageResponse<ClienteResponseDTO>> buscarClientes(
             @RequestParam(required = false) Integer idFirma,
-            @RequestParam String filtro) {
-        return ResponseEntity.ok(clienteService.buscarClientes(idFirma, filtro));
+            @RequestParam String filtro,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(clienteService.buscarClientes(idFirma, filtro, Pagination.of(page, size))));
     }
 
     // 4. Buscar por Identificación y Firma (Para pre-validaciones en el frontend)

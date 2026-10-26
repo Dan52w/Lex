@@ -80,9 +80,25 @@ public class DocumentoServiceImpl implements DocumentoService {
     @Transactional(readOnly = true)
     public List<DocumentoResponseDTO> listarPorCaso(Integer idCaso) {
         currentUser.requireCaso(idCaso);
+        // P1-B7: la papelera no aparece en el listado normal del caso.
         return documentoRepository.findByCasoId(idCaso).stream()
+                .filter(d -> d.getEliminadoEn() == null)
                 .map(documentoMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<DocumentoResponseDTO> listarPorCaso(Integer idCaso, org.springframework.data.domain.Pageable pageable) {
+        currentUser.requireCaso(idCaso);
+        return documentoRepository.findActivosByCasoId(idCaso, pageable).map(documentoMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<DocumentoResponseDTO> listarPapelera(Integer firmaId, org.springframework.data.domain.Pageable pageable) {
+        Integer firmaToken = currentUser.isAdmin() && firmaId != null ? firmaId : currentUser.requireFirmaId();
+        return documentoRepository.findPapeleraByFirmaId(firmaToken, pageable).map(documentoMapper::toResponse);
     }
 
     @Override
@@ -90,6 +106,10 @@ public class DocumentoServiceImpl implements DocumentoService {
     public DocumentoResponseDTO buscarPorId(Integer id) {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado"));
+        // P1-B7: un documento en papelera no se descarga ni se muestra como activo.
+        if (documento.getEliminadoEn() != null) {
+            throw new EntityNotFoundException("Documento no encontrado");
+        }
         currentUser.requireCaso(documento.getCaso().getId());
         return documentoMapper.toResponse(documento);
     }
@@ -105,26 +125,52 @@ public class DocumentoServiceImpl implements DocumentoService {
 
     @Override
     public void eliminar(Integer id) {
-        // 1. Buscar el documento (Lectura rápida)
+        // P1-B7: DELETE ya NO borra físicamente. Envía a papelera: se
+        // conservan fila y archivo, y queda auditado. El borrado físico
+        // solo lo hace un admin con eliminarDefinitivo (abajo). Retención
+        // documentada en README: 30 días en papelera, luego el admin puede
+        // borrarlo definitivamente; no hay purga automática en P1.
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado"));
-        // P0-B2: solo con acceso al caso del documento.
         currentUser.requireCaso(documento.getCaso().getId());
-
-        String rutaArchivo = documento.getDireccion();
-
-        // P0-B5/A3: el borrado físico queda REGISTRADO ANTES de ejecutarse
-        // (quién, cuándo, qué documento). La papelera con recuperación es
-        // P1-B7; en P0 lo mínimo es que no haya borrado sin rastro.
+        if (documento.getEliminadoEn() != null) {
+            return; // Ya está en papelera: idempotente.
+        }
+        documento.setEliminadoEn(LocalDateTime.now());
+        documento.setEliminadoPor(currentUser.personaId());
+        documentoRepository.save(documento);
         auditoriaService.registrar(currentUser.personaId(), currentUser.firmaId(),
-                "DOCUMENTO_ELIMINADO", "documento", id, null);
+                "DOCUMENTO_PAPELERA", "documento", id, null);
+    }
 
-        // 2. Borrar de Supabase FUERA de una transacción pesada de escritura de BD
+    @Override
+    public void restaurar(Integer id) {
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado"));
+        currentUser.requireCaso(documento.getCaso().getId());
+        documento.setEliminadoEn(null);
+        documento.setEliminadoPor(null);
+        documentoRepository.save(documento);
+        auditoriaService.registrar(currentUser.personaId(), currentUser.firmaId(),
+                "DOCUMENTO_RESTAURADO", "documento", id, null);
+    }
+
+    @Override
+    public void eliminarDefinitivo(Integer id) {
+        // Solo admin: el borrado físico es irreversible y queda auditado
+        // ANTES de ejecutarse, como en P0.
+        if (!currentUser.isAdmin()) {
+            throw new SecurityException("Solo un administrador puede borrar definitivamente un documento");
+        }
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado"));
+        currentUser.requireCaso(documento.getCaso().getId());
+        String rutaArchivo = documento.getDireccion();
+        auditoriaService.registrar(currentUser.personaId(), currentUser.firmaId(),
+                "DOCUMENTO_ELIMINADO_DEFINITIVO", "documento", id, null);
         if (rutaArchivo != null && !rutaArchivo.isEmpty()) {
             fileStorageService.eliminarArchivo(rutaArchivo);
         }
-
-        // 3. Borrar de la base de datos (Esto sí es una operación transaccional pura y veloz)
         borrarRegistroBD(documento);
     }
 

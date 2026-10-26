@@ -13,6 +13,7 @@ import com.example.lexcloud.repositorios.Persona_Repository;
 import com.example.lexcloud.repositorios.TipoAbogado_Repository;
 import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.AbogadoService;
+import com.example.lexcloud.util.SearchTerm;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +70,12 @@ public class AbogadoServiceImpl implements AbogadoService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<AbogadoResponseDTO> listarTodos(Integer firmaId, org.springframework.data.domain.Pageable pageable) {
+        firmaId = currentUser.isAdmin() && firmaId != null ? firmaId : currentUser.requireFirmaId();
+        return abogadoRepository.findByAbogadosByFirmaActivos(firmaId, pageable).map(abogadoMapper::toResponse);
+    }
+
+    @Override
     public List<AbogadoResponseDTO> listarTodos(Integer firmaId) {
         // P0-B2: firma del token (admin puede pedir otra firma).
         firmaId = currentUser.isAdmin() && firmaId != null ? firmaId : currentUser.requireFirmaId();
@@ -90,7 +97,7 @@ public class AbogadoServiceImpl implements AbogadoService {
     @Override
     public List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre) {
         idFirma = currentUser.isAdmin() && idFirma != null ? idFirma : currentUser.requireFirmaId();
-        List<Abogado> abogados = abogadoRepository.findByAbogadoByNombre(idFirma, nombre);
+        List<Abogado> abogados = abogadoRepository.findByAbogadoByNombre(idFirma, SearchTerm.escape(nombre));
 
         return abogadoMapper.toResponseList(abogados);
     }

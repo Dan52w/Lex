@@ -39,33 +39,46 @@ public class AgendaController {
         return ResponseEntity.ok(agentaService.listarAbogado(idAbogado));
     }
 
+    // P1-B2: paginado (el front CasoAgendaTab ya usa apiPage aquí).
     @GetMapping("/caso/{idCaso}")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorCaso(@PathVariable Integer idCaso) {
-        return ResponseEntity.ok(agentaService.listarCaso(idCaso));
+    public ResponseEntity<PageResponse<AgendaResponseDTO>> listarPorCaso(
+            @PathVariable Integer idCaso,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(agentaService.listarCaso(idCaso, Pagination.of(page, size))));
     }
 
     // Mejora: Uso de Query Params para fechas en lugar de Body
     // Ejemplo: /api/agendas/abogado/5/rango?inicio=2026-04-01T00:00:00&fin=2026-04-30T23:59:59
+    // P1-B2: paginado (máx. 50/pág.).
     @GetMapping("/abogado/{idAbogado}/rango")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorAbogadoFechaRange(@PathVariable Integer idAbogado,
+    public ResponseEntity<PageResponse<AgendaResponseDTO>> listarPorAbogadoFechaRange(@PathVariable Integer idAbogado,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        return ResponseEntity.ok(agentaService.listarAbogadoFechaRange(idAbogado, inicio, fin));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(agentaService.listarAbogadoFechaRange(idAbogado, inicio, fin, Pagination.of(page, size))));
     }
 
     // P0-B2: ruta canónica sin ids del cliente (abogado del token).
+    // P1-B2: paginado.
     @GetMapping("/mias/rango")
-    public ResponseEntity<List<AgendaResponseDTO>> listarMisCitasRango(
+    public ResponseEntity<PageResponse<AgendaResponseDTO>> listarMisCitasRango(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        return ResponseEntity.ok(agentaService.listarMisCitasRango(inicio, fin));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(agentaService.listarMisCitasRango(inicio, fin, Pagination.of(page, size))));
     }
 
+    // P1-B2: paginado.
     @GetMapping("/caso/{idCaso}/rango")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorCasoFechaRange(@PathVariable Integer idCaso,
+    public ResponseEntity<PageResponse<AgendaResponseDTO>> listarPorCasoFechaRange(@PathVariable Integer idCaso,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        return ResponseEntity.ok(agentaService.listarCasoFechaRange(idCaso, inicio, fin));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(agentaService.listarCasoFechaRange(idCaso, inicio, fin, Pagination.of(page, size))));
     }
 
     @GetMapping("/abogado/citas/{idAbogado}")

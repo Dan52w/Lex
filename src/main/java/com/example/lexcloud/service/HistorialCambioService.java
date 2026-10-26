@@ -8,4 +8,5 @@ import java.util.List;
 public interface HistorialCambioService {
     HistorialCambioResponseDTO guardar(HistorialCambioRequestDTO request);
     List<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso);
+    org.springframework.data.domain.Page<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso, org.springframework.data.domain.Pageable pageable);
 }

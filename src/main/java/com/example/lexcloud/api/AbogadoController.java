@@ -25,8 +25,10 @@ public class AbogadoController {
 
     // P0-B2: ruta canónica sin ids del cliente (firma del token).
     @GetMapping("/mi-firma")
-    public ResponseEntity<List<AbogadoResponseDTO>> listarMiFirma() {
-        return ResponseEntity.ok(abogadoService.listarTodos(currentUser.firmaId()));
+    public ResponseEntity<PageResponse<AbogadoResponseDTO>> listarMiFirma(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(abogadoService.listarTodos(currentUser.firmaId(), Pagination.of(page, size))));
     }
 
     // 1. Crear Abogado
@@ -38,8 +40,11 @@ public class AbogadoController {
 
     // 2. Listar todos por Firma (Activos)
     @GetMapping("/firma/{idFirma}")
-    public ResponseEntity<List<AbogadoResponseDTO>> listarPorFirma(@PathVariable Integer idFirma) {
-        return ResponseEntity.ok(abogadoService.listarTodos(idFirma));
+    public ResponseEntity<PageResponse<AbogadoResponseDTO>> listarPorFirma(
+            @PathVariable Integer idFirma,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.of(abogadoService.listarTodos(idFirma, Pagination.of(page, size))));
     }
 
     // 3. Buscar por ID

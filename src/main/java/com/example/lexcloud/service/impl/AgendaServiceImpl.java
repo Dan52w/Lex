@@ -51,8 +51,24 @@ public class AgendaServiceImpl implements AgentaService {
         if (request.idCaso() != null && request.idCaso() == 1) {
             throw new EntityNotFoundException("Caso no Encontrado");
         }
+        if (request.idCaso() == null) {
+            // Defensa en profundidad (el DTO ya exige @NotNull): un null
+            // aquí es 400, no una IllegalArgumentException accidental
+            // dentro de requireCaso ni un 409/500 en BD.
+            throw new IllegalArgumentException("Debe haber un Caso referenciado");
+        }
+        // P1: el abogado se deriva del token cuando el cliente no lo
+        // informa (el front real ya no envía idAbogado) o lo informa
+        // como 0 (valor que el front usaba como "sin dato"). Un id
+        // informado distinto de 0 se sigue validando como antes.
+        // Un token sin registro de abogado no puede agendar (403).
+        Integer idAbogado = (request.idAbogado() != null && request.idAbogado() != 0)
+                ? request.idAbogado() : currentUser.abogadoId();
+        if (idAbogado == null) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
+        }
         // P0-B2: el abogado debe ser de la firma del token y el caso accesible.
-        Abogado abogadoPrevio = abogadoRepository.findById(request.idAbogado())
+        Abogado abogadoPrevio = abogadoRepository.findById(idAbogado)
                 .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
         if (abogadoPrevio.getFirma() != null) {
             currentUser.requireFirma(abogadoPrevio.getFirma().getId());
@@ -61,12 +77,16 @@ public class AgendaServiceImpl implements AgentaService {
 
         Agenda agenda = agendaMapper.toEntity(request);
 
-        agenda.setAbogado(abogadoRepository.findById(request.idAbogado())
-                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado")));
+        agenda.setAbogado(abogadoPrevio);
         agenda.setCaso(casoRepository.findById(request.idCaso())
                 .orElseThrow(() -> new EntityNotFoundException("Caso no Encontrado")));
         agenda.setTipo_Agenda(tipoAgendaRepository.findById(request.idTipoAgenda())
                 .orElseThrow(() -> new EntityNotFoundException("Tipo Agenda no encontrado")));
+        // P1: la columna activa es NOT NULL; un null del cliente daba
+        // 409 en BD. Sin valor informado, la cita nueva queda activa.
+        if (agenda.getActiva() == null) {
+            agenda.setActiva(true);
+        }
 
         return agendaMapper.toResponse(agendaRepository.save(agenda));
     }
@@ -85,6 +105,15 @@ public class AgendaServiceImpl implements AgentaService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<AgendaResponseDTO> listarCaso(Integer idCaso, org.springframework.data.domain.Pageable pageable) {
+        if (idCaso == 1) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        currentUser.requireCaso(idCaso);
+        return agendaRepository.findByCasoId(idCaso, pageable).map(agendaMapper::toResponse);
+    }
+
+    @Override
     public List<AgendaResponseDTO> listarCaso(Integer idCaso) {
         if (idCaso == 1) {
             return List.of(); // Devuelve lista vacía inmediatamente
@@ -97,6 +126,16 @@ public class AgendaServiceImpl implements AgentaService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<AgendaResponseDTO> listarAbogadoFechaRange(Integer idAbogado, LocalDateTime inicio, LocalDateTime fin, org.springframework.data.domain.Pageable pageable) {
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        if (abogado.getFirma() != null) {
+            currentUser.requireFirma(abogado.getFirma().getId());
+        }
+        return agendaRepository.findAgendaByAbogadoAndFechaRange(idAbogado, inicio, fin, pageable).map(agendaMapper::toResponse);
+    }
+
+    @Override
     public  List<AgendaResponseDTO> listarAbogadoFechaRange(Integer idAbogado, LocalDateTime inicio, LocalDateTime fin) {
         Abogado abogado = abogadoRepository.findById(idAbogado)
                 .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
@@ -106,6 +145,12 @@ public class AgendaServiceImpl implements AgentaService {
         List<Agenda> agendas = agendaRepository.findAgendaByAbogadoAndFechaRange(idAbogado, inicio, fin);
 
         return agendaMapper.toResponseList(agendas);
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<AgendaResponseDTO> listarCasoFechaRange(Integer idCaso, LocalDateTime inicio, LocalDateTime fin, org.springframework.data.domain.Pageable pageable) {
+        currentUser.requireCaso(idCaso);
+        return agendaRepository.findByCasoIdAndFechaRange(idCaso, inicio, fin, pageable).map(agendaMapper::toResponse);
     }
 
     @Override
@@ -150,26 +195,60 @@ public class AgendaServiceImpl implements AgentaService {
             if (oldAgenda.getCaso() != null) {
                 currentUser.requireCaso(oldAgenda.getCaso().getId());
             }
-            Abogado nuevoAbogado = abogadoRepository.findById(request.idAbogado())
-                    .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
-            Caso nuevoCaso = casoRepository.findById(request.idCaso())
-                    .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
-            if (nuevoAbogado.getFirma() != null) {
+            // P1: idAbogado/idCaso ausentes o 0 = conservar los del
+            // recurso (el front de edición reenviaba idAbogado=0 porque
+            // la respuesta no lo incluía; eso daba 404 en cada PUT).
+            // Solo un id informado y distinto de 0 cambia el abogado/caso
+            // y se valida contra la firma del token como antes.
+            Abogado nuevoAbogado = oldAgenda.getAbogado();
+            if (request.idAbogado() != null && request.idAbogado() != 0) {
+                nuevoAbogado = abogadoRepository.findById(request.idAbogado())
+                        .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+                if (nuevoAbogado.getFirma() != null) {
+                    currentUser.requireFirma(nuevoAbogado.getFirma().getId());
+                }
+            } else if (nuevoAbogado != null && nuevoAbogado.getFirma() != null) {
                 currentUser.requireFirma(nuevoAbogado.getFirma().getId());
             }
-            currentUser.requireCaso(nuevoCaso.getId());
-            Tipo_Agenda nuevoTipoAgenda = tipoAgendaRepository.findById(request.idTipoAgenda())
-                    .orElseThrow(() -> new EntityNotFoundException("Tipo Agenda no encontrado"));
+            Caso nuevoCaso = oldAgenda.getCaso();
+            if (request.idCaso() != null && request.idCaso() != 0) {
+                nuevoCaso = casoRepository.findById(request.idCaso())
+                        .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
+                currentUser.requireCaso(nuevoCaso.getId());
+            }
+            Tipo_Agenda nuevoTipoAgenda = oldAgenda.getTipo_Agenda();
+            if (request.idTipoAgenda() != null) {
+                nuevoTipoAgenda = tipoAgendaRepository.findById(request.idTipoAgenda())
+                        .orElseThrow(() -> new EntityNotFoundException("Tipo Agenda no encontrado"));
+            }
 
             oldAgenda.setAbogado(nuevoAbogado);
             oldAgenda.setCaso(nuevoCaso);
             oldAgenda.setTipo_Agenda(nuevoTipoAgenda);
-            oldAgenda.setDescripcion(request.descripcion());
-            oldAgenda.setFechaExp(request.fechaExp());
-            oldAgenda.setActiva(request.activa());
+            // P1: null = conservar (la columna es NOT NULL; sobrescribir
+            // con null daba 409 en BD). @Valid ya exige descripción y
+            // fecha en el PUT, esto es defensa para llamadas directas.
+            if (request.descripcion() != null) {
+                oldAgenda.setDescripcion(request.descripcion());
+            }
+            if (request.fechaExp() != null) {
+                oldAgenda.setFechaExp(request.fechaExp());
+            }
+            if (request.activa() != null) {
+                oldAgenda.setActiva(request.activa());
+            }
 
             return agendaMapper.toResponse(agendaRepository.save(oldAgenda));
         }).orElseThrow(() -> new EntityNotFoundException("No se encontro la Agenda: " + id));
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<AgendaResponseDTO> listarMisCitasRango(LocalDateTime inicio, LocalDateTime fin, org.springframework.data.domain.Pageable pageable) {
+        Integer abogadoId = currentUser.abogadoId();
+        if (abogadoId == null) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
+        }
+        return agendaRepository.findAgendaByAbogadoAndFechaRange(abogadoId, inicio, fin, pageable).map(agendaMapper::toResponse);
     }
 
     @Override

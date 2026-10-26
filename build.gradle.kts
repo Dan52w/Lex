@@ -24,6 +24,15 @@ repositories {
     mavenCentral()
 }
 
+// P1-B6: bloqueo de versiones. El lockfile (gradle.lockfile) se genera en
+// el PC de Daniel con: ./gradlew dependencies --write-locks
+// (Gradle no corre en el contenedor de verificación, por eso no hay
+// lockfile en este turno; sin él, el build sigue funcionando, pero las
+// versiones no están fijadas).
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -34,6 +43,8 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.postgresql:postgresql")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
     annotationProcessor("org.projectlombok:lombok")

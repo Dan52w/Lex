@@ -1,26 +1,28 @@
-# Etapa 1: Compilar con Gradle usando Java 25
-FROM eclipse-temurin:25-jdk-jammy AS build
+# P1-B5: imagen segura.
+# - Etapa de build: JDK 25 (solo para compilar).
+# - Etapa de runtime: JRE 25 (sin compilador, menor superficie).
+# - Usuario no root (appuser).
+# - Los tests CORREN en el build (antes: ./gradlew build -x test los omitía).
+# - Sin secretos en la imagen: toda credencial llega por variables de
+#   entorno en tiempo de ejecución (ver application-example.properties).
+# - HEALTHCHECK de puerto (liveness): comprueba que 8080 escucha.
+#   No es readiness de la app: la imagen JRE no trae curl/wget y no hay
+#   endpoint /actuator/health en este backend.
+FROM eclipse-temurin:25-jdk-jammy AS builder
 WORKDIR /app
-
-# Copiamos archivos de configuración
-COPY gradlew .
 COPY gradle gradle
-COPY build.gradle.kts .
-COPY settings.gradle.kts .
-
-# Permisos y descarga de dependencias
-RUN chmod +x gradlew
-RUN ./gradlew dependencies --no-daemon
-
-# Copiamos código y construimos
+COPY gradlew build.gradle.kts settings.gradle.kts ./
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
 COPY src src
-RUN ./gradlew build -x test --no-daemon
+RUN ./gradlew build --no-daemon
 
-# Etapa 2: Imagen de ejecución con Java 25
-FROM eclipse-temurin:25-jdk-jammy
+FROM eclipse-temurin:25-jre-jammy
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 WORKDIR /app
-# Copiamos el jar generado
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=builder /app/build/libs/*.jar app.jar
+RUN chown appuser:appgroup app.jar
+USER appuser
 EXPOSE 8080
-# Mantenemos el límite de memoria para Render
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080' || exit 1
 ENTRYPOINT ["java", "-Xmx300m", "-jar", "app.jar"]

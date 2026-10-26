@@ -26,9 +26,12 @@ public class GlobalExceptionHandler {
     // 1. Recurso no encontrado (404)
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(EntityNotFoundException ex) {
+        // P1-B3: mensaje neutro al cliente (sin ids ni radicados que ayuden
+        // a enumerar); el detalle queda solo en el log interno.
+        log.warn("Recurso no encontrado: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
+                "El recurso solicitado no existe",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -57,7 +60,7 @@ public class GlobalExceptionHandler {
         log.warn("Solicitud inválida: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
+                "La solicitud no es válida",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);

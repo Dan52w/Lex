@@ -7,6 +7,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 
 @Repository
@@ -22,6 +25,16 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND vc.autorizado = true " +
             "AND c.activo = true")
     List<Caso> findCasosAutorizadosPorPersona(@Param("personaId") Integer personaId);
+
+    // P1-B2: misma consulta, paginada; el caso raíz id 1 se excluye en
+    // la consulta (no en memoria) para no romper los tamaños de página.
+    @Query("SELECT c FROM Caso c " +
+            "JOIN c.vinculo_Casos vc " +
+            "WHERE vc.personaFirma.id = :personaId " +
+            "AND vc.autorizado = true " +
+            "AND c.activo = true " +
+            "AND c.id <> 1")
+    Page<Caso> findCasosAutorizadosPorPersona(@Param("personaId") Integer personaId, Pageable pageable);
 
     /**
      * Valida que exista relación autorizada entre un abogado (personaFirma) y un cliente (cliente).
@@ -75,10 +88,10 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "WHERE vc.personaFirma.id = :personaId " +
             "AND vc.autorizado = true " +
             "AND c.activo = true " +
-            "AND (LOWER(c.titulo) LIKE LOWER(CONCAT('%', :termino, '%')) " +
-            "     OR LOWER(c.descripcion) LIKE LOWER(CONCAT('%', :termino, '%')) " +
-            "     OR c.radicadoInterno LIKE CONCAT('%', :termino, '%') " +
-            "     OR c.radicadoJudicial LIKE CONCAT('%', :termino, '%'))")
+            "AND (LOWER(c.titulo) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
+            "     OR LOWER(c.descripcion) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
+            "     OR c.radicadoInterno LIKE CONCAT('%', :termino, '%') ESCAPE '\\' " +
+            "     OR c.radicadoJudicial LIKE CONCAT('%', :termino, '%')) ESCAPE '\\'")
     List<Caso> superBuscador(
             @Param("termino") String termino,
             @Param("personaId") Integer personaId);
@@ -91,7 +104,7 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "WHERE vc.personaFirma.id = :personaId " +
             "AND vc.autorizado = true " +
             "AND c.activo = true " +
-            "AND LOWER(c.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))")
+            "AND LOWER(c.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')) ESCAPE '\\'")
     List<Caso> buscarPorTituloParcial(
             @Param("titulo") String titulo,
             @Param("personaId") Integer personaId);
@@ -165,10 +178,10 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "WHERE vc.personaFirma.id = :personaId " +
             "AND vc.autorizado = true " +
             "AND c.activo = true " +
-            "AND (LOWER(cl.nombres) LIKE LOWER(CONCAT('%', :termino, '%')) " +
-            "     OR LOWER(cl.primerApellido) LIKE LOWER(CONCAT('%', :termino, '%')) " +
-            "     OR LOWER(cl.segundoApellido) LIKE LOWER(CONCAT('%', :termino, '%')) " +
-            "     OR cl.identificacion LIKE CONCAT('%', :termino, '%'))")
+            "AND (LOWER(cl.nombres) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
+            "     OR LOWER(cl.primerApellido) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
+            "     OR LOWER(cl.segundoApellido) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
+            "     OR cl.identificacion LIKE CONCAT('%', :termino, '%')) ESCAPE '\\'")
     List<Caso> buscarPorClienteNombreOIdentificacion(
             @Param("termino") String termino,
             @Param("personaId") Integer personaId);

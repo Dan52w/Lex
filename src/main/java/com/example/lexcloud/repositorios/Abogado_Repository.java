@@ -20,7 +20,9 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
                                                               @Param("especialidad") String especialidad);
 
     // 2. Buscar un abogado específico por CC (Solo si está activo)
-    @Query("SELECT a FROM Abogado a WHERE a.persona.cc = :cc AND a.persona.activo = true AND a.firma = :firmaId")
+    // Hallazgo adicional (no P0, corregido): comparaba la entidad a.firma
+    // con un Integer :firmaId; el resto de queries usan a.firma.id.
+    @Query("SELECT a FROM Abogado a WHERE a.persona.cc = :cc AND a.persona.activo = true AND a.firma.id = :firmaId")
     Optional<Abogado> findByAbogadoActivobyCc(@Param("cc") String cc, @Param("firmaId") Integer firmaId);
 
     Optional<Abogado> findByPersonaId(Integer personaId);

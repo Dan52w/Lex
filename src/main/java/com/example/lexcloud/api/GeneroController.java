@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/generos")
@@ -19,6 +20,7 @@ public class GeneroController {
         this.generoService = generoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<GeneroResponseDTO> guardar(@Valid @RequestBody GeneroRequestDTO request) {
         return new ResponseEntity<>(generoService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class GeneroController {
         return ResponseEntity.ok(generoService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<GeneroResponseDTO> actualizar(@PathVariable Integer id,
                                                                   @Valid @RequestBody GeneroRequestDTO request) {
         return ResponseEntity.ok(generoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         generoService.eliminar(id);

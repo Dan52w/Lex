@@ -5,6 +5,7 @@ import com.example.lexcloud.dto.request.ClienteRequestDTO;
 import com.example.lexcloud.dto.response.ClienteResponseDTO;
 import com.example.lexcloud.entidades.*;
 import com.example.lexcloud.repositorios.Cliente_Repository;
+import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.ClienteService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -22,6 +23,7 @@ public class ClienteServiceImpl implements ClienteService {
 
     private final Cliente_Repository clienteRepository;
     private final ClienteMapper clienteMapper;
+    private final CurrentUser currentUser;
 
     @PersistenceContext
     private final EntityManager entityManager;
@@ -29,16 +31,24 @@ public class ClienteServiceImpl implements ClienteService {
     // Constructor limpio: Solo dependemos de lo estrictamente necesario
     public ClienteServiceImpl(Cliente_Repository clienteRepository,
                               ClienteMapper clienteMapper,
-                              EntityManager entityManager) {
+                              EntityManager entityManager,
+                              CurrentUser currentUser) {
         this.clienteRepository = clienteRepository;
         this.clienteMapper = clienteMapper;
         this.entityManager = entityManager;
+        this.currentUser = currentUser;
     }
 
     @Override
     public ClienteResponseDTO guardar(ClienteRequestDTO request) {
+        // P0-B2: la firma sale del token (admin puede indicar otra firma).
+        Integer firmaId = currentUser.isAdmin() && request.idFirma() != null
+                ? request.idFirma() : currentUser.requireFirmaId();
+        if (firmaId == null) {
+            throw new IllegalArgumentException("Debe indicar la firma del cliente");
+        }
         // 1. Validar que no exista un cliente activo con esa identificación en la misma firma
-        clienteRepository.findByIdentificacionAndFirma(request.identificacion(), request.idFirma())
+        clienteRepository.findByIdentificacionAndFirma(request.identificacion(), firmaId)
                 .ifPresent(c -> {
                     throw new IllegalStateException("Ya existe un cliente con esta identificación en esta firma.");
                 });
@@ -67,7 +77,7 @@ public class ClienteServiceImpl implements ClienteService {
         nuevoCliente.setActivo(true);
 
         // 3. Asignar relaciones obligatorias utilizando proxies ligeros de JPA
-        nuevoCliente.setFirma(entityManager.getReference(Firma.class, request.idFirma()));
+        nuevoCliente.setFirma(entityManager.getReference(Firma.class, firmaId));
         nuevoCliente.setTipoCliente(entityManager.getReference(Tipo_Cliente.class, request.idTipoCliente()));
 
         // 4. Asignar relaciones de caracterización opcionales (evitamos SELECTs innecesarios en cascada)
@@ -105,28 +115,36 @@ public class ClienteServiceImpl implements ClienteService {
     @Override
     @Transactional(readOnly = true)
     public List<ClienteResponseDTO> listarFirma(Integer idFirma) {
-        return clienteMapper.toResponseList(clienteRepository.findAllByFirmaId(idFirma));
+        // P0-B2: idFirma de la URL se ignora; siempre la firma del token.
+        Integer firmaToken = currentUser.isAdmin() && idFirma != null
+                ? idFirma : currentUser.requireFirmaId();
+        return clienteMapper.toResponseList(clienteRepository.findAllByFirmaId(firmaToken));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro) {
-        // Ejecuta el "Super Buscador" que barre múltiples campos a la vez
-        return clienteMapper.toResponseList(clienteRepository.superBuscador(filtro, idFirma));
+        // P0-B2: idFirma del cliente se ignora.
+        Integer firmaToken = currentUser.isAdmin() && idFirma != null
+                ? idFirma : currentUser.requireFirmaId();
+        return clienteMapper.toResponseList(clienteRepository.superBuscador(filtro, firmaToken));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma) {
-        return clienteRepository.findByIdentificacionAndFirma(identificacion, idFirma)
+        Integer firmaToken = currentUser.isAdmin() && idFirma != null
+                ? idFirma : currentUser.requireFirmaId();
+        return clienteRepository.findByIdentificacionAndFirma(identificacion, firmaToken)
                 .map(clienteMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma) {
+        // P0-B2: la firma contra la que se compara es la del token.
         return clienteRepository.findById(id)
-                .filter(cliente -> cliente.getActivo() && cliente.getFirma().getId().equals(idFirma))
+                .filter(cliente -> cliente.getActivo() && currentUser.canAccessFirma(cliente.getFirma().getId()))
                 .map(clienteMapper::toResponse);
     }
 
@@ -135,9 +153,9 @@ public class ClienteServiceImpl implements ClienteService {
         Cliente clienteExistente = clienteRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));
 
-        // Validación crítica de seguridad: ¿El cliente pertenece a la firma del abogado solicitante?
-        if (!clienteExistente.getFirma().getId().equals(idFirma)) {
-            throw new SecurityException("No tiene permisos para modificar un cliente perteneciente a otra firma.");
+        // P0-B2: la firma contra la que se compara es la del token.
+        if (!currentUser.canAccessFirma(clienteExistente.getFirma().getId())) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
         }
 
         // Actualización de campos de texto
@@ -189,9 +207,9 @@ public class ClienteServiceImpl implements ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + id));
 
-        // Validación crítica de seguridad para borrado lógico
-        if (!cliente.getFirma().getId().equals(idFirma)) {
-            throw new SecurityException("No tiene permisos para desactivar un cliente de otra firma.");
+        // P0-B2: la firma contra la que se compara es la del token.
+        if (!currentUser.canAccessFirma(cliente.getFirma().getId())) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
         }
 
         cliente.setActivo(false);

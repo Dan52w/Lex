@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/tipo-relacion-equipos")
@@ -19,6 +20,7 @@ public class TipoRelacionEquipoController {
         this.tipoRelacionEquipoService = tipoRelacionEquipoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<TipoRelacionEquipoResponseDTO> guardar(@Valid @RequestBody TipoRelacionEquipoRequestDTO request) {
         return new ResponseEntity<>(tipoRelacionEquipoService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class TipoRelacionEquipoController {
         return ResponseEntity.ok(tipoRelacionEquipoService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<TipoRelacionEquipoResponseDTO> actualizar(@PathVariable Integer id,
                                                                   @Valid @RequestBody TipoRelacionEquipoRequestDTO request) {
         return ResponseEntity.ok(tipoRelacionEquipoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         tipoRelacionEquipoService.eliminar(id);

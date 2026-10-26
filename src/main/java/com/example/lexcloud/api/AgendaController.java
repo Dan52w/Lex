@@ -53,6 +53,14 @@ public class AgendaController {
         return ResponseEntity.ok(agentaService.listarAbogadoFechaRange(idAbogado, inicio, fin));
     }
 
+    // P0-B2: ruta canónica sin ids del cliente (abogado del token).
+    @GetMapping("/mias/rango")
+    public ResponseEntity<List<AgendaResponseDTO>> listarMisCitasRango(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
+        return ResponseEntity.ok(agentaService.listarMisCitasRango(inicio, fin));
+    }
+
     @GetMapping("/caso/{idCaso}/rango")
     public ResponseEntity<List<AgendaResponseDTO>> listarPorCasoFechaRange(@PathVariable Integer idCaso,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,

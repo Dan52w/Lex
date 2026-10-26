@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/nivel-salariales")
@@ -19,6 +20,7 @@ public class NivelSalarialController {
         this.nivelSalarialService = nivelSalarialService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<NivelSalarialResponseDTO> guardar(@Valid @RequestBody NivelSalarialRequestDTO request) {
         return new ResponseEntity<>(nivelSalarialService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class NivelSalarialController {
         return ResponseEntity.ok(nivelSalarialService.listarPorRango(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<NivelSalarialResponseDTO> actualizar(@PathVariable Integer id,
                                                                   @Valid @RequestBody NivelSalarialRequestDTO request) {
         return ResponseEntity.ok(nivelSalarialService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         nivelSalarialService.eliminar(id);

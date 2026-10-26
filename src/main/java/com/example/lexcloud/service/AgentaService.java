@@ -17,4 +17,6 @@ public interface AgentaService {
     Optional<AgendaResponseDTO> buscarPorId(Integer id);
     AgendaResponseDTO actualizar(Integer id, AgendaRequestDTO request);
     void desactivarAgenda(Integer id);
+    /** P0-B2: citas del abogado del token en un rango (ruta /mias/rango). */
+    List<AgendaResponseDTO> listarMisCitasRango(LocalDateTime inicio, LocalDateTime fin);
 }

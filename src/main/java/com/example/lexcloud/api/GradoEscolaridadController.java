@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/grado-escolaridades")
@@ -19,6 +20,7 @@ public class GradoEscolaridadController {
         this.gradoEscolaridadService = gradoEscolaridadService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<GradoEscolaridadResponseDTO> guardar(@Valid @RequestBody GradoEscolaridadRequestDTO request) {
         return new ResponseEntity<>(gradoEscolaridadService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class GradoEscolaridadController {
         return ResponseEntity.ok(gradoEscolaridadService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<GradoEscolaridadResponseDTO> actualizar(@PathVariable Integer id,
                                                         @Valid @RequestBody GradoEscolaridadRequestDTO request) {
         return ResponseEntity.ok(gradoEscolaridadService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         gradoEscolaridadService.eliminar(id);

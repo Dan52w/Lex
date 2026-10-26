@@ -9,17 +9,28 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/abogados")
 public class AbogadoController {
     private final AbogadoService abogadoService;
+    private final com.example.lexcloud.security.CurrentUser currentUser;
 
-    public AbogadoController(AbogadoService abogadoService) {
+    public AbogadoController(AbogadoService abogadoService,
+                              com.example.lexcloud.security.CurrentUser currentUser) {
         this.abogadoService = abogadoService;
+        this.currentUser = currentUser;
+    }
+
+    // P0-B2: ruta canónica sin ids del cliente (firma del token).
+    @GetMapping("/mi-firma")
+    public ResponseEntity<List<AbogadoResponseDTO>> listarMiFirma() {
+        return ResponseEntity.ok(abogadoService.listarTodos(currentUser.firmaId()));
     }
 
     // 1. Crear Abogado
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<AbogadoResponseDTO> guardar(@Valid @RequestBody AbogadoRequestDTO request) {
         return new ResponseEntity<>(abogadoService.guardar(request), HttpStatus.CREATED);
@@ -64,12 +75,14 @@ public class AbogadoController {
     }
 
     // 4. Actualizar
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<AbogadoResponseDTO> actualizar(@PathVariable Integer id, @Valid @RequestBody AbogadoRequestDTO request) {
         return ResponseEntity.ok(abogadoService.actualizar(id, request));
     }
 
     // 5. Desactivar (Soft Delete)
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
         abogadoService.desactivarAbogado(id);

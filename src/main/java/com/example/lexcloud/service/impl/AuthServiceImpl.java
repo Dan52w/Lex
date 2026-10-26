@@ -29,12 +29,23 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional // Asegura que se guarde todo bien o nada
     public void registrar(RegisterRequestDTO request) {
+        // P0-B7: política de contraseña (mínimo 10; 12 si la persona a la que
+        // se crea la cuenta es administradora).
+        Persona personaPrevia = personaRepository.findById(request.idPersona()).orElse(null);
+        int minimo = (personaPrevia != null && personaPrevia.getRol() != null
+                && "ROLE_ADMIN".equals(com.example.lexcloud.security.service.UserDetailsImpl
+                        .normalizeRole(personaPrevia.getRol().getNombre())))
+                ? 12 : 10;
+        com.example.lexcloud.security.PasswordPolicy.validar(
+                request.password(), request.correo(), minimo);
         if (loginRepository.existsByCorreo(request.correo())) {
             throw new IllegalArgumentException("El correo ya está registrado");
         }
 
-        Persona persona = personaRepository.findById(request.idPersona())
-                .orElseThrow(() -> new EntityNotFoundException("La persona no existe"));
+        Persona persona = personaPrevia;
+        if (persona == null) {
+            throw new EntityNotFoundException("La persona no existe");
+        }
 
         Login login = new Login();
         login.setCorreo(request.correo());
@@ -47,5 +58,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean existeCorreo(String correo) {
         return loginRepository.existsByCorreo(correo);
+    }
+
+    @Override
+    public java.util.Optional<String> correoDePersona(Integer personaId) {
+        return loginRepository.findById(personaId).map(Login::getCorreo);
     }
 }

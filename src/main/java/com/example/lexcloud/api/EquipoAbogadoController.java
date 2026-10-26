@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/equipo-abogados")
@@ -21,6 +22,7 @@ public class EquipoAbogadoController {
     }
 
     // 1. Crear una nueva asignación (Abogado <-> Persona con un Tipo de Relación)
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<EquipoAbogadoResponseDTO> crear(@Valid @RequestBody EquipoAbogadoRequestDTO request) {
         return new ResponseEntity<>(equipoAbogadoService.crearAsignacion(request), HttpStatus.CREATED);
@@ -69,6 +71,7 @@ public class EquipoAbogadoController {
     }
 
     // 9. Desactivar (soft) una asignación específica por par Abogado/Persona
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/desactivar")
     public ResponseEntity<Void> desactivar(@RequestParam Integer idAbogado, @RequestParam Integer idPersona) {
         equipoAbogadoService.desactivarAsignacion(idAbogado, idPersona);
@@ -76,6 +79,7 @@ public class EquipoAbogadoController {
     }
 
     // 10. Eliminar físicamente el registro de asignación
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         equipoAbogadoService.eliminarAsignacion(id);

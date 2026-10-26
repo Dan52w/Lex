@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/estados")
@@ -21,6 +22,7 @@ public class EstadoController {
     }
 
     // 1. Crear un nuevo estado
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<EstadoResponseDTO> guardar(@Valid @RequestBody EstadoRequestDTO request) {
         return new ResponseEntity<>(estadoService.guardar(request), HttpStatus.CREATED);
@@ -49,6 +51,7 @@ public class EstadoController {
     }
 
     // 5. Actualizar un estado existente
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<EstadoResponseDTO> actualizar(
             @PathVariable Integer id,
@@ -57,6 +60,7 @@ public class EstadoController {
     }
 
     // 6. Eliminar un estado
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         estadoService.eliminar(id);

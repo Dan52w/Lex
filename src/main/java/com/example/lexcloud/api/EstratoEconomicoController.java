@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/estrato-economicos")
@@ -19,6 +20,7 @@ public class EstratoEconomicoController {
         this.estratoEconomicoService = estratoEconomicoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<EstratoEconomicoResponseDTO> guardar(@Valid @RequestBody EstratoEconomicoRequestDTO request) {
         return new ResponseEntity<>(estratoEconomicoService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class EstratoEconomicoController {
         return ResponseEntity.ok(estratoEconomicoService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<EstratoEconomicoResponseDTO> actualizar(@PathVariable Integer id,
                                                               @Valid @RequestBody EstratoEconomicoRequestDTO request) {
         return ResponseEntity.ok(estratoEconomicoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         estratoEconomicoService.eliminar(id);

@@ -2,6 +2,7 @@ package com.example.lexcloud.api;
 
 import com.example.lexcloud.dto.request.CasoRequestDTO;
 import com.example.lexcloud.dto.response.CasoResponseDTO;
+import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.CasoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,9 +16,17 @@ import java.util.List;
 public class CasoController {
 
     private final CasoService casoService;
+    private final CurrentUser currentUser;
 
-    public CasoController(CasoService casoService) {
+    public CasoController(CasoService casoService, CurrentUser currentUser) {
         this.casoService = casoService;
+        this.currentUser = currentUser;
+    }
+
+    // P0-B2: ruta canónica sin ids del cliente (persona del token).
+    @GetMapping("/mis-casos")
+    public ResponseEntity<List<CasoResponseDTO>> listarMisCasos() {
+        return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(currentUser.personaId()));
     }
 
     // Crear un nuevo caso

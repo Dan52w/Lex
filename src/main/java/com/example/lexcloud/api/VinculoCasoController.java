@@ -30,6 +30,12 @@ public class VinculoCasoController {
         return ResponseEntity.ok(vinculoCasoService.listarPersonalAsignado(idCaso));
     }
 
+    // P0-B2: ruta canónica sin ids del cliente (persona del token).
+    @GetMapping("/mis-casos")
+    public ResponseEntity<List<VinculoCasoResponseDTO>> listarMisCasosCanonica() {
+        return ResponseEntity.ok(vinculoCasoService.listarMisCasos(null));
+    }
+
     @GetMapping("/persona/{idPersona}/mis-casos")
     public ResponseEntity<List<VinculoCasoResponseDTO>> listarMisCasos(@PathVariable Integer idPersona) {
         return ResponseEntity.ok(vinculoCasoService.listarMisCasos(idPersona));

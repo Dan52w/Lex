@@ -91,7 +91,7 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND (LOWER(c.titulo) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
             "     OR LOWER(c.descripcion) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
             "     OR c.radicadoInterno LIKE CONCAT('%', :termino, '%') ESCAPE '\\' " +
-            "     OR c.radicadoJudicial LIKE CONCAT('%', :termino, '%')) ESCAPE '\\'")
+            "     OR c.radicadoJudicial LIKE CONCAT('%', :termino, '%') ESCAPE '\\')")
     List<Caso> superBuscador(
             @Param("termino") String termino,
             @Param("personaId") Integer personaId);
@@ -181,7 +181,7 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
             "AND (LOWER(cl.nombres) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
             "     OR LOWER(cl.primerApellido) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
             "     OR LOWER(cl.segundoApellido) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\' " +
-            "     OR cl.identificacion LIKE CONCAT('%', :termino, '%')) ESCAPE '\\'")
+            "     OR cl.identificacion LIKE CONCAT('%', :termino, '%') ESCAPE '\\')")
     List<Caso> buscarPorClienteNombreOIdentificacion(
             @Param("termino") String termino,
             @Param("personaId") Integer personaId);

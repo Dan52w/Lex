@@ -56,6 +56,11 @@ dependencies {
     // repositorios/servicios sin Postgres.
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("com.h2database:h2")
+    // P0-A4: integración contra PostgreSQL real (Testcontainers). Solo
+    // para A4SecurityIT/A4TokenExpiracionIT; exige Docker en marcha.
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

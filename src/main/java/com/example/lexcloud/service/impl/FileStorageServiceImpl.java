@@ -1,5 +1,6 @@
 package com.example.lexcloud.service.impl;
 
+import com.example.lexcloud.security.FileValidation;
 import com.example.lexcloud.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -20,14 +21,18 @@ public class FileStorageServiceImpl implements FileStorageService {
     private String supabaseKey;
 
     @Override
-    public String guardarArchivo(MultipartFile archivo, String nombreCarpeta) {
+    public String guardarArchivo(MultipartFile archivo, String nombreCarpeta, String nombreArchivo) {
         try {
-            String originalName = archivo.getOriginalFilename() != null
-                    ? archivo.getOriginalFilename().replace(" ", "_")
-                    : "archivo";
-            String nombreArchivo = System.currentTimeMillis() + "_" + originalName;
-
-            String rutaVirtual = nombreCarpeta + "/" + nombreArchivo;
+            // P0-B5: la carpeta y el nombre vienen del servidor (firma
+            // numérica + UUID). Nunca el nombre original ni el NIT del
+            // cliente. Defensa en profundidad: rechazar traversal aquí también.
+            String carpetaLimpia = nombreCarpeta.replace("..", "").replace("\\", "").replace("/", "_");
+            String nombreLimpio = FileValidation.sanitizarNombreParaMostrar(nombreArchivo)
+                    .replace("/", "_").replace("\\", "_");
+            if (nombreLimpio.isBlank() || nombreLimpio.contains("..")) {
+                throw new IllegalArgumentException("Nombre de archivo no válido");
+            }
+            String rutaVirtual = carpetaLimpia + "/" + nombreLimpio;
             String urlFinal = supabaseUrl + rutaVirtual;
 
             RestTemplate restTemplate = new RestTemplate();
@@ -59,6 +64,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public Resource cargarArchivo(String rutaRelativa) {
         try {
+            FileValidation.validarRutaAlmacenada(rutaRelativa);
             String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
             String urlDescarga = supabaseUrl + path; // Cambio a variable dinámica
 
@@ -90,6 +96,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void eliminarArchivo(String rutaRelativa) {
         try {
+            FileValidation.validarRutaAlmacenada(rutaRelativa);
             String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
             String urlEliminar = supabaseUrl + path; // Cambio a variable dinámica
 

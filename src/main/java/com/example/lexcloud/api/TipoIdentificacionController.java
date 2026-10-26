@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/tipo-identificaciones")
@@ -19,6 +20,7 @@ public class TipoIdentificacionController {
         this.tipoIdentificacionService = tipoIdentificacionService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<TipoIdenficacionResponseDTO> guardar(@Valid @RequestBody TipoIdentificacionRequestDTO request) {
         return new ResponseEntity<>(tipoIdentificacionService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class TipoIdentificacionController {
         return ResponseEntity.ok(tipoIdentificacionService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<TipoIdenficacionResponseDTO> actualizar(@PathVariable Integer id,
                                                               @Valid @RequestBody TipoIdentificacionRequestDTO request) {
         return ResponseEntity.ok(tipoIdentificacionService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         tipoIdentificacionService.eliminar(id);

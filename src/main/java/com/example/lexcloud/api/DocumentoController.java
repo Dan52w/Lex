@@ -2,9 +2,13 @@ package com.example.lexcloud.api;
 
 import com.example.lexcloud.dto.request.DocumentoRequestDTO;
 import com.example.lexcloud.dto.response.DocumentoResponseDTO;
+import com.example.lexcloud.security.AuditoriaService;
+import com.example.lexcloud.security.CurrentUser;
+import com.example.lexcloud.security.FileValidation;
 import com.example.lexcloud.service.DocumentoService;
 import com.example.lexcloud.service.FileStorageService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,36 +24,42 @@ import java.util.List;
 public class DocumentoController {
     private final DocumentoService documentoService;
     private final FileStorageService fileStorageService;
+    private final CurrentUser currentUser;
+    private final AuditoriaService auditoriaService;
 
-    public DocumentoController(DocumentoService documentoService, FileStorageService fileStorageService) {
+    /** Límite por documento. Por defecto 10 MB (P0-B5). */
+    @Value("${lexcloud.documentos.max-bytes:10485760}")
+    private long maxBytes;
+
+    public DocumentoController(DocumentoService documentoService, FileStorageService fileStorageService,
+                               CurrentUser currentUser, AuditoriaService auditoriaService) {
         this.documentoService = documentoService;
         this.fileStorageService = fileStorageService;
+        this.currentUser = currentUser;
+        this.auditoriaService = auditoriaService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentoResponseDTO> subirDocumento(
             @RequestPart("datos") @Valid DocumentoRequestDTO request,
-            @RequestPart("archivo") MultipartFile archivo) {
+            @RequestPart("archivo") MultipartFile archivo) throws Exception {
 
-        // 1. Validaciones preventivas
-        if (archivo.isEmpty()) {
-            throw new IllegalArgumentException("No se puede subir un archivo vacío.");
-        }
+        // P0-B5: validación en el backend (tamaño, lista blanca, magic bytes).
+        // El nitFirma del DTO se ignora: la carpeta sale de la firma del caso
+        // resuelta en el servidor. Nota: getBytes() carga el archivo en
+        // memoria; con el límite de 10 MB es aceptable en P0 (antes no había
+        // límite efectivo y el front permitía 200 MB).
+        byte[] contenido = archivo.getBytes();
+        String extension = FileValidation.validar(contenido, archivo.getOriginalFilename(), maxBytes);
 
-        if (request.nitFirma() == null || request.nitFirma().isBlank()) {
-            throw new IllegalArgumentException("El NIT de la firma es obligatorio para organizar el archivo.");
-        }
+        // Acceso al caso + firma del servidor (lanza 403 si no hay acceso).
+        Integer firmaId = documentoService.firmaDeCaso(request.idCaso());
+        String carpeta = "firma_" + firmaId;
+        String nombreAlmacenamiento = FileValidation.nombreAlmacenamiento(extension);
 
-        // 2. Metadatos del archivo
-        String carpeta = "firma_" + request.nitFirma().trim();
-        long pesoEnBytes = archivo.getSize(); // Capturamos el tamaño aquí
+        String rutaRelativa = fileStorageService.guardarArchivo(archivo, carpeta, nombreAlmacenamiento);
 
-        // 3. Guardado físico (File System o Cloud)
-        // El FileStorageService debería devolver la ruta donde quedó el archivo
-        String rutaRelativa = fileStorageService.guardarArchivo(archivo, carpeta);
-
-        // 4. Guardado en Base de Datos (Pasamos el peso obtenido)
-        DocumentoResponseDTO response = documentoService.guardar(request, rutaRelativa, pesoEnBytes);
+        DocumentoResponseDTO response = documentoService.guardar(request, rutaRelativa, contenido.length);
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -66,38 +76,30 @@ public class DocumentoController {
 
     @GetMapping("/descargar/{id}")
     public ResponseEntity<Resource> descargar(@PathVariable Integer id) {
+        // buscarPorId ya comprueba acceso al caso (P0-B2).
         DocumentoResponseDTO dto = documentoService.buscarPorId(id);
+        auditoriaService.registrar(currentUser.personaId(), currentUser.firmaId(),
+                "DOCUMENTO_DESCARGADO", "documento", id, null);
         Resource recurso = fileStorageService.cargarArchivo(dto.direccion());
 
-        // La extensión real del archivo está en la ruta almacenada, no en la categoría (tipoDocumento)
-        String extension = extraerExtension(dto.direccion());
+        // La extensión real está en la ruta almacenada, no en la categoría.
+        String extension = FileValidation.extensionDe(dto.direccion());
 
-        String nombreConExtension = (!extension.isEmpty() && !dto.nombre().toLowerCase().endsWith("." + extension))
-                ? dto.nombre() + "." + extension
-                : dto.nombre();
-
-        String mediaType = switch (extension) {
-            case "pdf" -> "application/pdf";
-            case "doc" -> "application/msword";
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "xls" -> "application/vnd.ms-excel";
-            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png" -> "image/png";
-            default -> "application/octet-stream";
-        };
+        // P0-B5: nombre sanitizado y escapado; attachment para que el
+        // navegador no ejecute el contenido como HTML aunque sea un PDF con
+        // script o un archivo renombrado. El Content-Type sale de la lista
+        // blanca, nunca del Content-Type que envió el cliente.
+        String nombreLimpio = FileValidation.sanitizarNombreParaMostrar(dto.nombre());
+        String nombreConExtension = (!extension.isEmpty()
+                && !nombreLimpio.toLowerCase().endsWith("." + extension))
+                ? nombreLimpio + "." + extension
+                : nombreLimpio;
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(mediaType))
+                .contentType(MediaType.parseMediaType(FileValidation.mediaTypePara(extension)))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombreConExtension + "\"")
+                .header("X-Content-Type-Options", "nosniff")
                 .body(recurso);
-    }
-
-    private String extraerExtension(String direccion) {
-        if (direccion == null) return "";
-        int lastDot = direccion.lastIndexOf('.');
-        if (lastDot < 0 || lastDot == direccion.length() - 1) return "";
-        return direccion.substring(lastDot + 1).toLowerCase();
     }
 
     @DeleteMapping("/{id}")

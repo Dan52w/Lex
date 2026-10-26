@@ -11,6 +11,7 @@ import com.example.lexcloud.repositorios.Abogado_Repository;
 import com.example.lexcloud.repositorios.Agenda_Repository;
 import com.example.lexcloud.repositorios.Caso_Repository;
 import com.example.lexcloud.repositorios.TipoAgenda_Repository;
+import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.AgentaService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -28,17 +29,20 @@ public class AgendaServiceImpl implements AgentaService {
     private final TipoAgenda_Repository tipoAgendaRepository;
     private final Agenda_Repository agendaRepository;
     private final AgendaMapper agendaMapper;
+    private final CurrentUser currentUser;
 
     public AgendaServiceImpl(Caso_Repository casoRepository,
                              Abogado_Repository abogadoRepository,
                              TipoAgenda_Repository tipoAgendaRepository,
                              Agenda_Repository agendaRepository,
-                             AgendaMapper agendaMapper) {
+                             AgendaMapper agendaMapper,
+                             CurrentUser currentUser) {
         this.casoRepository = casoRepository;
         this.abogadoRepository = abogadoRepository;
         this.tipoAgendaRepository = tipoAgendaRepository;
         this.agendaRepository = agendaRepository;
         this.agendaMapper = agendaMapper;
+        this.currentUser = currentUser;
     }
 
     @Override
@@ -47,6 +51,13 @@ public class AgendaServiceImpl implements AgentaService {
         if (request.idCaso() != null && request.idCaso() == 1) {
             throw new EntityNotFoundException("Caso no Encontrado");
         }
+        // P0-B2: el abogado debe ser de la firma del token y el caso accesible.
+        Abogado abogadoPrevio = abogadoRepository.findById(request.idAbogado())
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        if (abogadoPrevio.getFirma() != null) {
+            currentUser.requireFirma(abogadoPrevio.getFirma().getId());
+        }
+        currentUser.requireCaso(request.idCaso());
 
         Agenda agenda = agendaMapper.toEntity(request);
 
@@ -62,6 +73,12 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarAbogado(Integer idAbogado) {
+        // P0-B2: solo la agenda de abogados de la propia firma.
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        if (abogado.getFirma() != null) {
+            currentUser.requireFirma(abogado.getFirma().getId());
+        }
         List<Agenda> agendas = agendaRepository.findByAbogadoId(idAbogado);
 
         return agendaMapper.toResponseList(agendas);
@@ -72,6 +89,7 @@ public class AgendaServiceImpl implements AgentaService {
         if (idCaso == 1) {
             return List.of(); // Devuelve lista vacía inmediatamente
         }
+        currentUser.requireCaso(idCaso);
 
         List<Agenda> agendas = agendaRepository.findByCasoId(idCaso);
 
@@ -80,6 +98,11 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public  List<AgendaResponseDTO> listarAbogadoFechaRange(Integer idAbogado, LocalDateTime inicio, LocalDateTime fin) {
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        if (abogado.getFirma() != null) {
+            currentUser.requireFirma(abogado.getFirma().getId());
+        }
         List<Agenda> agendas = agendaRepository.findAgendaByAbogadoAndFechaRange(idAbogado, inicio, fin);
 
         return agendaMapper.toResponseList(agendas);
@@ -87,6 +110,7 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarCasoFechaRange(Integer idCaso, LocalDateTime inicio, LocalDateTime fin) {
+        currentUser.requireCaso(idCaso);
         List<Agenda> agendas = agendaRepository.findByCasoIdAndFechaRange(idCaso, inicio, fin);
 
         return agendaMapper.toResponseList(agendas);
@@ -94,6 +118,11 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarProximaCitas(Integer idAbogado) {
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        if (abogado.getFirma() != null) {
+            currentUser.requireFirma(abogado.getFirma().getId());
+        }
         List<Agenda> agendas = agendaRepository.findProximasCitasByAbogado(idAbogado);
 
         return  agendaMapper.toResponseList(agendas);
@@ -102,7 +131,12 @@ public class AgendaServiceImpl implements AgentaService {
     @Override
     public Optional<AgendaResponseDTO> buscarPorId(Integer id) {
         return agendaRepository.findById(id)
-                .map(agendaMapper::toResponse);
+                .map(agenda -> {
+                    if (agenda.getCaso() != null) {
+                        currentUser.requireCaso(agenda.getCaso().getId());
+                    }
+                    return agendaMapper.toResponse(agenda);
+                });
     }
 
     @Override
@@ -113,10 +147,17 @@ public class AgendaServiceImpl implements AgentaService {
         }
 
         return agendaRepository.findById(id).map( oldAgenda -> {
+            if (oldAgenda.getCaso() != null) {
+                currentUser.requireCaso(oldAgenda.getCaso().getId());
+            }
             Abogado nuevoAbogado = abogadoRepository.findById(request.idAbogado())
                     .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
             Caso nuevoCaso = casoRepository.findById(request.idCaso())
                     .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
+            if (nuevoAbogado.getFirma() != null) {
+                currentUser.requireFirma(nuevoAbogado.getFirma().getId());
+            }
+            currentUser.requireCaso(nuevoCaso.getId());
             Tipo_Agenda nuevoTipoAgenda = tipoAgendaRepository.findById(request.idTipoAgenda())
                     .orElseThrow(() -> new EntityNotFoundException("Tipo Agenda no encontrado"));
 
@@ -132,9 +173,22 @@ public class AgendaServiceImpl implements AgentaService {
     }
 
     @Override
+    public List<AgendaResponseDTO> listarMisCitasRango(LocalDateTime inicio, LocalDateTime fin) {
+        Integer abogadoId = currentUser.abogadoId();
+        if (abogadoId == null) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
+        }
+        return agendaMapper.toResponseList(
+                agendaRepository.findAgendaByAbogadoAndFechaRange(abogadoId, inicio, fin));
+    }
+
+    @Override
     public void desactivarAgenda(Integer id){
         Agenda agenda = agendaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Agenda no encontrado"));
+        if (agenda.getCaso() != null) {
+            currentUser.requireCaso(agenda.getCaso().getId());
+        }
 
         agenda.setActiva(false);
 

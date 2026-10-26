@@ -5,6 +5,7 @@ import com.example.lexcloud.dto.request.CasoRequestDTO;
 import com.example.lexcloud.dto.response.CasoResponseDTO;
 import com.example.lexcloud.entidades.*;
 import com.example.lexcloud.repositorios.*;
+import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.CasoService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +30,7 @@ public class CasoServiceImpl implements CasoService {
     private final HistorialCambio_Repository historialCambioRepository;
     private final Firma_Repository firmaRepository;
     private final CasoMapper casoMapper;
+    private final CurrentUser currentUser;
 
     public CasoServiceImpl(Caso_Repository casoRepository,
                            Estado_Repository estadoRepository,
@@ -39,7 +41,8 @@ public class CasoServiceImpl implements CasoService {
                            Vinculo_Repository vinculoRepository,
                            Cliente_Repository clienteRepository,
                            Firma_Repository firmaRepository,
-                           CasoMapper casoMapper) {
+                           CasoMapper casoMapper,
+                           CurrentUser currentUser) {
         this.casoRepository = casoRepository;
         this.estadoRepository = estadoRepository;
         this.subtipoRepository = subtipoRepository;
@@ -50,6 +53,7 @@ public class CasoServiceImpl implements CasoService {
         this.clienteRepository = clienteRepository;
         this.firmaRepository = firmaRepository;
         this.casoMapper = casoMapper;
+        this.currentUser = currentUser;
     }
 
     @Override
@@ -62,13 +66,26 @@ public class CasoServiceImpl implements CasoService {
         caso.setSubtipo_Caso(subtipoRepository.findById(request.idSubtipo())
                 .orElseThrow(() -> new EntityNotFoundException("Subtipo no encontrado")));
 
+        // P0-B2: la firma sale del token (un admin puede crear un caso para
+        // otra firma indicando idFirma; un no-admin queda atado a su firma y
+        // el idFirma del DTO se ignora).
+        Integer firmaId = currentUser.isAdmin() && request.idFirma() != null
+                ? request.idFirma() : currentUser.requireFirmaId();
+        if (firmaId == null) {
+            throw new IllegalArgumentException("Debe indicar la firma del caso");
+        }
+        caso.setFirma(firmaRepository.findById(firmaId)
+                .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
+
         Integer idPadreEfectivo = (request.idCasoPadre() != null) ? request.idCasoPadre() : 1;
         Caso padre = casoRepository.findById(idPadreEfectivo)
                 .orElseThrow(() -> new EntityNotFoundException("Caso padre no encontrado (ID: " + idPadreEfectivo + ")"));
+        // Un caso padre distinto de la raíz debe ser de la misma firma.
+        if (idPadreEfectivo != 1 && (padre.getFirma() == null
+                || !padre.getFirma().getId().equals(firmaId))) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
+        }
         caso.setCasoPadre(padre);
-
-        caso.setFirma(firmaRepository.findById(request.idFirma())
-                .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
 
         boolean necesitaGenerarRadicadoInterno =
                 (caso.getRadicadoInterno() == null || caso.getRadicadoInterno().trim().isEmpty());
@@ -91,8 +108,17 @@ public class CasoServiceImpl implements CasoService {
 
         casoGuardado = casoRepository.save(casoGuardado);
 
-        Cliente cliente = clienteRepository.getReferenceById(request.idCliente());
-        crearVinculo(casoGuardado, request.idPersonaCreador(), cliente, true);
+        // P0-B2: el cliente debe existir y ser de la misma firma (antes se
+        // usaba getReferenceById sin comprobar existencia ni firma).
+        Cliente cliente = clienteRepository.findById(request.idCliente())
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
+        if (cliente.getFirma() == null || !cliente.getFirma().getId().equals(firmaId)) {
+            throw new SecurityException("No tiene permisos para realizar esta acción");
+        }
+        // El creador es el usuario del token, no idPersonaCreador del DTO.
+        // Excepción documentada de P0-B4: el creador recibe vínculo autorizado
+        // a su propio caso nuevo (no es auto-autorizarse a un caso ajeno).
+        crearVinculo(casoGuardado, currentUser.personaId(), cliente, true);
 
         return casoMapper.toResponse(casoGuardado);
     }
@@ -103,6 +129,8 @@ public class CasoServiceImpl implements CasoService {
         if (id == 1) {
             throw new EntityNotFoundException("No se puede modificar el caso raíz");
         }
+        // P0-B2: solo firma del token + vínculo autorizado (o admin).
+        currentUser.requireCaso(id);
 
         return casoRepository.findById(id).map(oldCaso -> {
             String estadoAnterior = (oldCaso.getEstado() != null) ? oldCaso.getEstado().getNombre() : "Sin estado";
@@ -134,7 +162,7 @@ public class CasoServiceImpl implements CasoService {
 
             Caso casoActualizado = casoRepository.save(oldCaso);
 
-            registrarCambioEnHistorial(casoActualizado, request.idPersonaCreador(),
+            registrarCambioEnHistorial(casoActualizado, currentUser.personaId(),
                     "Actualización de datos. Estado anterior: " + estadoAnterior + ". Título anterior: " + nombreCasoAnterior);
             return casoMapper.toResponse(casoActualizado);
 
@@ -144,7 +172,7 @@ public class CasoServiceImpl implements CasoService {
     // Métodos de consulta...
     @Override
     public List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona) {
-        return casoRepository.findCasosAutorizadosPorPersona(idPersona).stream()
+        return casoRepository.findCasosAutorizadosPorPersona(currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -152,7 +180,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente) {
-        return casoRepository.findCasosAutorizadosPorAbogadoYCliente(idPersonaFirma, idCliente).stream()
+        return casoRepository.findCasosAutorizadosPorAbogadoYCliente(currentUser.personaId(), idCliente).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -160,7 +188,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona) {
-        return casoRepository.buscarPorTituloParcial(titulo, idPersona).stream()
+        return casoRepository.buscarPorTituloParcial(titulo, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -168,7 +196,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorEstado(String estadoNombre, Integer idPersona) {
-        return casoRepository.findByEstadoAndPersona(estadoNombre, idPersona).stream()
+        return casoRepository.findByEstadoAndPersona(estadoNombre, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -176,7 +204,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona) {
-        return casoRepository.findBySubtipoIdAndPersona(idSubtipo, idPersona).stream()
+        return casoRepository.findBySubtipoIdAndPersona(idSubtipo, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -184,7 +212,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idPersona, Integer idEstado, Integer idSubtipo) {
-        return casoRepository.findByEstadoAndSubtipoAndPersona(idPersona, idEstado, idSubtipo).stream()
+        return casoRepository.findByEstadoAndSubtipoAndPersona(currentUser.personaId(), idEstado, idSubtipo).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -192,29 +220,35 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso) {
+        // P0-B2: el padre distinto de la raíz exige acceso; para la raíz (id 1)
+        // se filtran los hijos a los que el token tiene acceso autorizado.
+        if (idCaso != 1) {
+            currentUser.requireCaso(idCaso);
+        }
         return casoRepository.findByCasoPadreId(idCaso).stream()
                 .filter(c -> c.getId() != 1)
+                .filter(c -> idCaso != 1 || currentUser.canAccessCaso(c.getId()))
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     public CasoResponseDTO buscarPorRadicadoInterno(String radicadoInterno, Integer idPersona) {
-        return casoRepository.findByRadicadoInternoAndPersona(radicadoInterno, idPersona)
+        return casoRepository.findByRadicadoInternoAndPersona(radicadoInterno, currentUser.personaId())
                 .map(casoMapper::toResponse)
                 .orElseThrow(() -> new EntityNotFoundException("Caso con radicado interno '" + radicadoInterno + "' no encontrado o no autorizado"));
     }
 
     @Override
     public CasoResponseDTO buscarPorRadicadoJudicial(String radicadoJudicial, Integer idPersona) {
-        return casoRepository.findByRadicadoJudicialAndPersona(radicadoJudicial, idPersona)
+        return casoRepository.findByRadicadoJudicialAndPersona(radicadoJudicial, currentUser.personaId())
                 .map(casoMapper::toResponse)
                 .orElseThrow(() -> new EntityNotFoundException("Caso con radicado judicial '" + radicadoJudicial + "' no encontrado o no autorizado"));
     }
 
     @Override
     public List<CasoResponseDTO> superBuscador(String termino, Integer idPersona) {
-        return casoRepository.superBuscador(termino, idPersona).stream()
+        return casoRepository.superBuscador(termino, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -222,7 +256,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> listarPorCliente(Integer idCliente, Integer idPersona) {
-        return casoRepository.findByClienteIdAndPersona(idCliente, idPersona).stream()
+        return casoRepository.findByClienteIdAndPersona(idCliente, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -230,7 +264,7 @@ public class CasoServiceImpl implements CasoService {
 
     @Override
     public List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona) {
-        return casoRepository.buscarPorClienteNombreOIdentificacion(termino, idPersona).stream()
+        return casoRepository.buscarPorClienteNombreOIdentificacion(termino, currentUser.personaId()).stream()
                 .filter(c -> c.getId() != 1)
                 .map(casoMapper::toResponse)
                 .collect(Collectors.toList());
@@ -241,6 +275,7 @@ public class CasoServiceImpl implements CasoService {
         if (id == 1) {
             throw new EntityNotFoundException("Caso no encontrado");
         }
+        currentUser.requireCaso(id);
         return casoRepository.findById(id)
                 .map(casoMapper::toResponse)
                 .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));
@@ -249,6 +284,7 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public void desactivarCaso(Integer id) {
         if (id == 1) throw new IllegalArgumentException("No se puede desactivar el caso raíz del sistema");
+        currentUser.requireCaso(id);
 
         Caso caso = casoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado"));

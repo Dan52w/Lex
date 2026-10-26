@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/tipo-documentos")
@@ -20,6 +21,7 @@ public class TipoDocumentoController {
         this.tipoDocumentoService = tipoDocumentoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<TipoDocumentoResponseDTO> crear(@Valid @RequestBody TipoDocumentoRequestDTO request) {
         TipoDocumentoResponseDTO nuevoTipo = tipoDocumentoService.guardar(request);
@@ -45,12 +47,14 @@ public class TipoDocumentoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<TipoDocumentoResponseDTO> actualizar(@PathVariable Integer id,
                                                                @Valid @RequestBody TipoDocumentoRequestDTO request) {
         return ResponseEntity.ok(tipoDocumentoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         tipoDocumentoService.eliminar(id);

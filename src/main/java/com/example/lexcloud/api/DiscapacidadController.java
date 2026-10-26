@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/discapacidades")
@@ -20,6 +21,7 @@ public class DiscapacidadController {
         this.discapacidadService = discapacidadService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<DiscapacidadResponseDTO> guardar(@Valid @RequestBody DiscapacidadRequestDTO request) {
         return new ResponseEntity<>(discapacidadService.guardar(request), HttpStatus.CREATED);
@@ -49,12 +51,14 @@ public class DiscapacidadController {
         return ResponseEntity.ok(discapacidadService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<DiscapacidadResponseDTO> actualizar(@PathVariable Integer id,
                                                               @Valid @RequestBody DiscapacidadRequestDTO request) {
         return ResponseEntity.ok(discapacidadService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         discapacidadService.eliminar(id);

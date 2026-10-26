@@ -62,6 +62,12 @@ public interface VinculoCaso_Repository extends JpaRepository<Vinculo_Caso, Inte
     // 10. Listar vínculos pendientes de autorización (Para panel de administración)
     List<Vinculo_Caso> findByAutorizadoFalse();
 
+    // 10b. P0-B4: pendientes SOLO de una firma (el método anterior sin filtro
+    // entregaba pendientes de todas las firmas a cualquier autenticado).
+    @Query("SELECT vc FROM Vinculo_Caso vc WHERE vc.autorizado = false "
+            + "AND vc.caso.firma.id = :firmaId")
+    List<Vinculo_Caso> findPendientesPorFirma(@Param("firmaId") Integer firmaId);
+
     // 11. Listar vínculos activos de un caso donde el abogado siga activo en la firma
     @Query("SELECT vc FROM Vinculo_Caso vc " +
             "WHERE vc.caso.id = :casoId " +

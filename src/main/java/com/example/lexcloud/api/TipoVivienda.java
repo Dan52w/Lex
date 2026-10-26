@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/tipo-viviendas")
@@ -19,6 +20,7 @@ public class TipoVivienda {
         this.tipoViviendaService = tipoViviendaService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<TipoViviendaResponseDTO> guardar(@Valid @RequestBody TipoViviendaRequestDTO request) {
         return new ResponseEntity<>(tipoViviendaService.guardar(request), HttpStatus.CREATED);
@@ -48,12 +50,14 @@ public class TipoVivienda {
         return ResponseEntity.ok(tipoViviendaService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<TipoViviendaResponseDTO> actualizar(@PathVariable Integer id,
                                                                     @Valid @RequestBody TipoViviendaRequestDTO request) {
         return ResponseEntity.ok(tipoViviendaService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         tipoViviendaService.eliminar(id);

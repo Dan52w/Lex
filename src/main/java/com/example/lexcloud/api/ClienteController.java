@@ -2,6 +2,7 @@ package com.example.lexcloud.api;
 
 import com.example.lexcloud.dto.request.ClienteRequestDTO;
 import com.example.lexcloud.dto.response.ClienteResponseDTO;
+import com.example.lexcloud.security.CurrentUser;
 import com.example.lexcloud.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,9 +16,17 @@ import java.util.List;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final CurrentUser currentUser;
 
-    public ClienteController(ClienteService clienteService) {
+    public ClienteController(ClienteService clienteService, CurrentUser currentUser) {
         this.clienteService = clienteService;
+        this.currentUser = currentUser;
+    }
+
+    // P0-B2: ruta canónica sin ids del cliente (firma del token).
+    @GetMapping("/mi-firma")
+    public ResponseEntity<List<ClienteResponseDTO>> listarMiFirma() {
+        return ResponseEntity.ok(clienteService.listarFirma(currentUser.firmaId()));
     }
 
     // 1. Guardar un nuevo Cliente
@@ -36,7 +45,7 @@ public class ClienteController {
     // Ejemplo: /api/clientes/buscar?idFirma=1&filtro=Perez
     @GetMapping("/buscar")
     public ResponseEntity<List<ClienteResponseDTO>> buscarClientes(
-            @RequestParam Integer idFirma,
+            @RequestParam(required = false) Integer idFirma,
             @RequestParam String filtro) {
         return ResponseEntity.ok(clienteService.buscarClientes(idFirma, filtro));
     }
@@ -46,7 +55,7 @@ public class ClienteController {
     @GetMapping("/buscar/identificacion")
     public ResponseEntity<ClienteResponseDTO> buscarPorIdentificacion(
             @RequestParam String identificacion,
-            @RequestParam Integer idFirma) {
+            @RequestParam(required = false) Integer idFirma) {
         return clienteService.buscarPorIdentificacion(identificacion, idFirma)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -56,7 +65,7 @@ public class ClienteController {
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> buscarPorId(
             @PathVariable Integer id,
-            @RequestParam Integer idFirma) {
+            @RequestParam(required = false) Integer idFirma) {
         return clienteService.buscarPorId(id, idFirma)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -66,7 +75,7 @@ public class ClienteController {
     @PutMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> actualizar(
             @PathVariable Integer id,
-            @RequestParam Integer idFirma,
+            @RequestParam(required = false) Integer idFirma,
             @Valid @RequestBody ClienteRequestDTO request) {
         return ResponseEntity.ok(clienteService.actualizar(id, idFirma, request));
     }
@@ -75,7 +84,7 @@ public class ClienteController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(
             @PathVariable Integer id,
-            @RequestParam Integer idFirma) {
+            @RequestParam(required = false) Integer idFirma) {
         clienteService.desactivarCliente(id, idFirma);
         return ResponseEntity.noContent().build();
     }

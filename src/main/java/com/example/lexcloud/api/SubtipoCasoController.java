@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/subtipo-casos")
@@ -20,6 +21,7 @@ public class SubtipoCasoController {
         this.subtipoCasoService = subtipoCasoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SubtipoCasoResponseDTO> crear(@Valid @RequestBody SubtipoCasoRequestDTO request) {
         return new ResponseEntity<>(subtipoCasoService.guardar(request), HttpStatus.CREATED);
@@ -44,12 +46,14 @@ public class SubtipoCasoController {
         return ResponseEntity.ok(lista);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<SubtipoCasoResponseDTO> actualizar(@PathVariable Integer id,
                                                              @Valid @RequestBody SubtipoCasoRequestDTO request) {
         return ResponseEntity.ok(subtipoCasoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         subtipoCasoService.eliminar(id);

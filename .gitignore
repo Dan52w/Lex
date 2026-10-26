@@ -36,3 +36,13 @@ out/
 
 ### VS Code ###
 .vscode/
+### P0-B8: secretos y configuración local (nunca commitear valores reales) ###
+.env
+.env.*
+application-local.properties
+application-prod.properties
+application-*.properties
+!application-example.properties
+*.pem
+*.key
+credentials*.json

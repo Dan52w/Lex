@@ -13,4 +13,6 @@ public interface PersonaService {
     PersonaResponseDTO actualizar(Integer id, PersonaRequestDTO requestDTO);
     boolean existeCc(String cc);
     void desactivar(Integer id);
+    /** P0-B3: reactivación EXPLÍCITA y solo-admin (nunca al editar). */
+    void reactivar(Integer id);
 }

@@ -7,10 +7,19 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.text.Normalizer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
+/**
+ * P0-B3: las autoridades se normalizan a un único catálogo con prefijo ROLE_.
+ * Catálogo: ROLE_ADMIN, ROLE_ABOGADO, ROLE_CLIENTE y ROLE_&lt;NOMBRE&gt; para
+ * cualquier otro rol de la tabla roles (normalizado). Antes se usaba el nombre
+ * crudo ("Abogado"), con el que hasRole() nunca funcionaba.
+ * El nombre crudo se conserva en nombreRol solo para mostrar en la UI.
+ */
 public class UserDetailsImpl implements UserDetails {
     private Integer id;
     private String email;
@@ -23,7 +32,6 @@ public class UserDetailsImpl implements UserDetails {
 
     private Collection<? extends GrantedAuthority> authorities;
 
-    // Constructor completo
     public UserDetailsImpl(Integer id, String email, String password,
                            String nombreCompleto, String cc, String nombreRol,
                            Collection<? extends GrantedAuthority> authorities) {
@@ -36,30 +44,49 @@ public class UserDetailsImpl implements UserDetails {
         this.authorities = authorities;
     }
 
+    /** Normaliza un nombre de rol de BD a su autoridad ROLE_*. */
+    public static String normalizeRole(String nombreRol) {
+        if (nombreRol == null || nombreRol.isBlank()) {
+            return "ROLE_CLIENTE";
+        }
+        String sinAcentos = Normalizer.normalize(nombreRol.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        String normalizado = sinAcentos.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        return switch (normalizado) {
+            case "ADMINISTRADOR", "ADMIN", "ADMINISTRATOR" -> "ROLE_ADMIN";
+            case "ABOGADO", "LAWYER" -> "ROLE_ABOGADO";
+            case "CLIENTE", "CLIENT" -> "ROLE_CLIENTE";
+            default -> normalizado.startsWith("ROLE_") ? normalizado : "ROLE_" + normalizado;
+        };
+    }
+
     public static UserDetailsImpl build(Persona persona, Login login) {
-        // Suponiendo que el rol viene de la persona o el login (ej: persona.getRol().getNombre())
         String rol = (persona.getRol() != null) ? persona.getRol().getNombre() : "Cliente";
 
         List<GrantedAuthority> authorities = Collections.singletonList(
-                new SimpleGrantedAuthority(rol)
+                new SimpleGrantedAuthority(normalizeRole(rol))
         );
 
         return new UserDetailsImpl(
                 persona.getId(),
                 login.getCorreo(),
                 login.getPassword(),
-                persona.getNombre() + " " + persona.getApellido(), // Concatenamos nombre completo
+                persona.getNombre() + " " + persona.getApellido(),
                 persona.getCc(),
                 rol,
                 authorities
         );
     }
 
-    // Getters para tus DTOs
     public Integer getId() { return id; }
     public String getNombreCompleto() { return nombreCompleto; }
     public String getCc() { return cc; }
     public String getNombreRol() { return nombreRol; }
+
+    public boolean isAdmin() {
+        return authorities != null && authorities.stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

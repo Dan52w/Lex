@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/vinculos")
@@ -20,6 +21,7 @@ public class VinculoController {
         this.vinculoService = vinculoService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<VinculoResponseDTO> crear(@Valid @RequestBody VinculoRequestDTO request) {
         VinculoResponseDTO nuevoVinculo = vinculoService.guardar(request);
@@ -45,12 +47,14 @@ public class VinculoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<VinculoResponseDTO> actualizar(@PathVariable Integer id,
                                                          @Valid @RequestBody VinculoRequestDTO request) {
         return ResponseEntity.ok(vinculoService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         vinculoService.eliminar(id);

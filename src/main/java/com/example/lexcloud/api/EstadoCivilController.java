@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/estados-civiles")
@@ -20,6 +21,7 @@ public class EstadoCivilController {
         this.estadoCivilService = estadoCivilService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<EstadoCivilResponseDTO> guardar(@Valid @RequestBody EstadoCivilRequestDTO request) {
         return new ResponseEntity<>(estadoCivilService.guardar(request), HttpStatus.CREATED);
@@ -49,12 +51,14 @@ public class EstadoCivilController {
         return ResponseEntity.ok(estadoCivilService.listarPorNombre(nombre));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<EstadoCivilResponseDTO> actualizar(@PathVariable Integer id,
                                                              @Valid @RequestBody EstadoCivilRequestDTO request) {
         return ResponseEntity.ok(estadoCivilService.actualizar(id, request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         estadoCivilService.eliminar(id);

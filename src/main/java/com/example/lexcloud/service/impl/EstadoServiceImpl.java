@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstadoResponseDTO;
 import com.example.lexcloud.entidades.Estado;
 import com.example.lexcloud.repositorios.Estado_Repository;
 import com.example.lexcloud.service.EstadoService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,17 +68,33 @@ public class EstadoServiceImpl implements EstadoService {
     @Override
     public EstadoResponseDTO actualizar(Integer id, EstadoRequestDTO request) {
         return estadoRepository.findById(id).map(estado -> {
-            // Actualizamos los campos necesarios
+            // W5 (cierre del veto de borrado): 'SIN DEFINIR' tampoco se puede
+            // renombrar; si no, se renombraría y luego se borraría por el otro lado.
+            if ("SIN DEFINIR".equals(estado.getNombre()) && !estado.getNombre().equals(request.nombre())) {
+                throw new IllegalStateException("El estado 'SIN DEFINIR' es del sistema y no se puede renombrar.");
+            }
+            estadoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Estado con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             estado.setNombre(request.nombre());
 
-            return estadoMapper.toResponse(estadoRepository.save(estado));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el estado con ID: " + id));
+            try {
+                return estadoMapper.toResponse(estadoRepository.save(estado));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Estado con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el estado con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
-        if (!estadoRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Estado no encontrado");
+        Estado estado = estadoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("No se puede eliminar: Estado no encontrado con ID: " + id));
+        // W5: 'SIN DEFINIR' es el estado por defecto que busca el trigger 009 (V3); borrarlo rompería la creación de casos.
+        if ("SIN DEFINIR".equals(estado.getNombre())) {
+            throw new IllegalStateException("No se puede eliminar el estado 'SIN DEFINIR': es un estado del sistema requerido por el trigger de estado por defecto.");
         }
         estadoRepository.deleteById(id);
     }

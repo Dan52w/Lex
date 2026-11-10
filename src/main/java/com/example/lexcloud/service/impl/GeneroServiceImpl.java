@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.GeneroResponseDTO;
 import com.example.lexcloud.entidades.Genero;
 import com.example.lexcloud.repositorios.Genero_Repository;
 import com.example.lexcloud.service.GeneroService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class GeneroServiceImpl implements GeneroService {
     @Override
     public GeneroResponseDTO actualizar(Integer id, GeneroRequestDTO request) {
         return generoRepository.findById(id).map(genero -> {
-            // Actualizamos los campos necesarios
+            generoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             genero.setNombre(request.nombre());
 
-            return generoMapper.toResponse(generoRepository.save(genero));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el genero con ID: " + id));
+            try {
+                return generoMapper.toResponse(generoRepository.save(genero));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el genero con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!generoRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Genero no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Genero no encontrado");
         }
         generoRepository.deleteById(id);
     }

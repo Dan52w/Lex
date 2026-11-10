@@ -9,6 +9,7 @@ import com.example.lexcloud.repositorios.SubtipoCaso_Repository;
 import com.example.lexcloud.repositorios.TipoCaso_Repository; // Necesitarás este repo
 import com.example.lexcloud.service.SubtipoCasoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class SubtipoCasoServiceImpl implements SubtipoCasoService {
     public SubtipoCasoResponseDTO guardar(SubtipoCasoRequestDTO request) {
         // Validar si ya existe el nombre en este tipo de caso
         subtipoRepository.findByNombre(request.nombre()).ifPresent(s -> {
-            throw new IllegalArgumentException("Ya existe un subtipo con este nombre");
+            throw new IllegalStateException("Ya existe un subtipo con el nombre '" + request.nombre() + "'.");
         });
 
         Tipo_Caso tipo = tipoRepository.findById(request.tipoCaso())
@@ -43,7 +44,12 @@ public class SubtipoCasoServiceImpl implements SubtipoCasoService {
         subtipo.setNombre(request.nombre());
         subtipo.setTipoCaso(tipo);
 
-        return subtipoCasoMapper.toResponse(subtipoRepository.save(subtipo));
+        try {
+            return subtipoCasoMapper.toResponse(subtipoRepository.save(subtipo));
+        } catch (DataIntegrityViolationException ex) {
+            // Defensa en profundidad: UNIQUE(id_tipo_caso, nombre) en V1.
+            throw new IllegalStateException("Ya existe un subtipo con el nombre '" + request.nombre() + "'.");
+        }
     }
 
     @Override
@@ -75,23 +81,39 @@ public class SubtipoCasoServiceImpl implements SubtipoCasoService {
     @Transactional
     public SubtipoCasoResponseDTO actualizar(Integer id, SubtipoCasoRequestDTO request) {
         return subtipoRepository.findById(id).map(oldSubtipo -> {
-            Subtipo_Caso subtipo = subtipoRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("Subtipo no encontrado"));
+            // W5 (cierre del veto de borrado): 'RAÍZ' tampoco se puede renombrar.
+            if ("RAÍZ".equals(oldSubtipo.getNombre()) && !oldSubtipo.getNombre().equals(request.nombre())) {
+                throw new IllegalStateException("El subtipo 'RAÍZ' es del sistema y no se puede renombrar.");
+            }
+            subtipoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("Ya existe un subtipo con el nombre '" + request.nombre() + "'.");
+                    });
 
             Tipo_Caso tipo = tipoRepository.findById(request.tipoCaso())
                     .orElseThrow(() -> new EntityNotFoundException("Tipo de Caso no encontrado"));
 
-            subtipo.setNombre(request.nombre());
-            subtipo.setTipoCaso(tipo);
+            oldSubtipo.setNombre(request.nombre());
+            oldSubtipo.setTipoCaso(tipo);
 
-            return subtipoCasoMapper.toResponse(subtipoRepository.save(subtipo));
+            try {
+                return subtipoCasoMapper.toResponse(subtipoRepository.save(oldSubtipo));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("Ya existe un subtipo con el nombre '" + request.nombre() + "'.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró la sub tipo caso con ID: " + id));
     }
 
     @Override
     @Transactional
     public void eliminar(Integer id) {
-        if (!subtipoRepository.existsById(id)) throw new EntityNotFoundException("ID no encontrado");
+        Subtipo_Caso subtipo = subtipoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("No se puede eliminar: Subtipo de caso no encontrado con ID: " + id));
+        // W5: 'RAÍZ' es el subtipo raíz del sistema (seed V1); borrarlo rompería el caso maestro.
+        if ("RAÍZ".equals(subtipo.getNombre())) {
+            throw new IllegalStateException("No se puede eliminar el subtipo 'RAÍZ': es el subtipo raíz del sistema.");
+        }
         subtipoRepository.deleteById(id);
     }
 }

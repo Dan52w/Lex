@@ -64,11 +64,17 @@ public class TipoAbogadoServiceImpl implements TipoAbogadoService {
     @Override
     public TipoAbogadoResponseDTO actualizar(Integer id, TipoAbogadoRequestDTO request) {
         return tipoAbogadoRepository.findById(id).map(oldTipoAbogado -> {
-            if(tipoAbogadoRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("La especialización con el nombre '" + request.nombre() + "' ya existe.");
-            }
+            tipoAbogadoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             oldTipoAbogado.setNombre(request.nombre());
-            return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(oldTipoAbogado));
+            try {
+                return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(oldTipoAbogado));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró la especialización con ID: " + id));
     }
 

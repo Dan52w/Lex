@@ -8,4 +8,5 @@ import java.util.List;
 public interface HistorialCambioService {
     HistorialCambioResponseDTO guardar(HistorialCambioRequestDTO request);
     List<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso);
+    List<HistorialCambioResponseDTO> listarPorCaso(Integer idCaso, int page, int size);
 }

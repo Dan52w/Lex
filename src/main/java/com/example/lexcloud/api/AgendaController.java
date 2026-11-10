@@ -35,13 +35,17 @@ public class AgendaController {
     }
 
     @GetMapping("/abogado/{idAbogado}")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorAbogado(@PathVariable Integer idAbogado) {
-        return ResponseEntity.ok(agentaService.listarAbogado(idAbogado));
+    public ResponseEntity<List<AgendaResponseDTO>> listarPorAbogado(@PathVariable Integer idAbogado,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agentaService.listarAbogado(idAbogado, page, size));
     }
 
     @GetMapping("/caso/{idCaso}")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorCaso(@PathVariable Integer idCaso) {
-        return ResponseEntity.ok(agentaService.listarCaso(idCaso));
+    public ResponseEntity<List<AgendaResponseDTO>> listarPorCaso(@PathVariable Integer idCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agentaService.listarCaso(idCaso, page, size));
     }
 
     // Mejora: Uso de Query Params para fechas en lugar de Body
@@ -61,8 +65,10 @@ public class AgendaController {
     }
 
     @GetMapping("/abogado/citas/{idAbogado}")
-    public ResponseEntity<List<AgendaResponseDTO>> listarPorProximasCitas(@PathVariable Integer idAbogado) {
-        return ResponseEntity.ok(agentaService.listarProximaCitas(idAbogado));
+    public ResponseEntity<List<AgendaResponseDTO>> listarPorProximasCitas(@PathVariable Integer idAbogado,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agentaService.listarProximaCitas(idAbogado, page, size));
     }
 
     @PutMapping("/{id}")

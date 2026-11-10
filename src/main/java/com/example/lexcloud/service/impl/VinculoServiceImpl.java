@@ -64,18 +64,33 @@ public class VinculoServiceImpl implements VinculoService {
     @Override
     public VinculoResponseDTO actualizar(Integer id, VinculoRequestDTO request) {
         return vinculoRepository.findById(id).map(oldTipoCaso -> {
-            if(vinculoRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("El vinculo con el nombre '" + request.nombre() + "' ya existe.");
+            // W5 (cierre del veto de borrado): 'SIN VÍNCULO' y 'Principal'
+            // tampoco se pueden renombrar.
+            if (("SIN VÍNCULO".equals(oldTipoCaso.getNombre()) || "Principal".equals(oldTipoCaso.getNombre()))
+                    && !oldTipoCaso.getNombre().equals(request.nombre())) {
+                throw new IllegalStateException("El vínculo '" + oldTipoCaso.getNombre() + "' es del sistema y no se puede renombrar.");
             }
+            vinculoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Vinculo con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             oldTipoCaso.setNombre(request.nombre());
-            return vinculoMapper.toResponse(vinculoRepository.save(oldTipoCaso));
+            try {
+                return vinculoMapper.toResponse(vinculoRepository.save(oldTipoCaso));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Vinculo con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró el vinculo con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
-        if(!vinculoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Vinculo no encontrada con ID: " + id);
+        Vinculo vinculo = vinculoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("No se puede eliminar: Vinculo no encontrada con ID: " + id));
+        // W5: 'SIN VÍNCULO' (vínculo por defecto, id 1) y 'Principal' (el que se asigna al crear casos) son seeds V1; borrarlos rompería la creación de casos.
+        if ("SIN VÍNCULO".equals(vinculo.getNombre()) || "Principal".equals(vinculo.getNombre())) {
+            throw new IllegalStateException("No se puede eliminar el vínculo '" + vinculo.getNombre() + "': es un vínculo del sistema.");
         }
         vinculoRepository.deleteById(id);
     }

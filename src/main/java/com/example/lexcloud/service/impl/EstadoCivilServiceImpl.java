@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstadoCivilResponseDTO;
 import com.example.lexcloud.entidades.Estado_Civil;
 import com.example.lexcloud.repositorios.EstadoCivil_Repository;
 import com.example.lexcloud.service.EstadoCivilService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class EstadoCivilServiceImpl implements EstadoCivilService {
     @Override
     public EstadoCivilResponseDTO actualizar(Integer id, EstadoCivilRequestDTO request) {
         return estadoCivilRepository.findById(id).map(estadoCivil -> {
-            // Actualizamos los campos necesarios
+            estadoCivilRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             estadoCivil.setNombre(request.nombre());
 
-            return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el estado civil con ID: " + id));
+            try {
+                return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el estado civil con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!estadoCivilRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Estado Civil no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Estado Civil no encontrado");
         }
         estadoCivilRepository.deleteById(id);
     }

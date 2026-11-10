@@ -60,8 +60,10 @@ public class DocumentoController {
     }
 
     @GetMapping("/caso/{idCaso}")
-    public ResponseEntity<List<DocumentoResponseDTO>> listarPorCaso(@PathVariable Integer idCaso) {
-        return ResponseEntity.ok(documentoService.listarPorCaso(idCaso));
+    public ResponseEntity<List<DocumentoResponseDTO>> listarPorCaso(@PathVariable Integer idCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(documentoService.listarPorCaso(idCaso, page, size));
     }
 
     @GetMapping("/descargar/{id}")

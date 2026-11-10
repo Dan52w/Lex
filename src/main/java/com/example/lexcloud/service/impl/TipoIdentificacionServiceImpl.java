@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.TipoIdenficacionResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Identificacion;
 import com.example.lexcloud.repositorios.TipoIdentificacion_Repository;
 import com.example.lexcloud.service.TipoIdentificacionService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class TipoIdentificacionServiceImpl implements TipoIdentificacionService 
     @Override
     public TipoIdenficacionResponseDTO actualizar(Integer id, TipoIdentificacionRequestDTO request) {
         return tipoIdentificacionRepository.findById(id).map(tipoIdentifiacion -> {
-            // Actualizamos los campos necesarios
+            tipoIdentificacionRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             tipoIdentifiacion.setNombre(request.nombre());
 
-            return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentifiacion));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el tipo identificacion con ID: " + id));
+            try {
+                return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentifiacion));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo identificacion con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!tipoIdentificacionRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Tipo identificacion no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Tipo identificacion no encontrado");
         }
         tipoIdentificacionRepository.deleteById(id);
     }

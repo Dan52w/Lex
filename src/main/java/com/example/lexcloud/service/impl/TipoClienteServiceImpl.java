@@ -64,11 +64,17 @@ public class TipoClienteServiceImpl implements TipoClienteService {
     @Override
     public TipoClienteResponseDTO actualizar(Integer id, TipoClienteRequestDTO request) {
         return tipoClienteRepository.findById(id).map(oldTipoCaso -> {
-            if(tipoClienteRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("El tipo cliente con el nombre '" + request.nombre() + "' ya existe.");
-            }
+            tipoClienteRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Cliente con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             oldTipoCaso.setNombre(request.nombre());
-            return tipoClienteMapper.toResponse(tipoClienteRepository.save(oldTipoCaso));
+            try {
+                return tipoClienteMapper.toResponse(tipoClienteRepository.save(oldTipoCaso));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Cliente con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo cliente con ID: " + id));
     }
 

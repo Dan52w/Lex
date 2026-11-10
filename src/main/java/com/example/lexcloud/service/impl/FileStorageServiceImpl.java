@@ -22,12 +22,16 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public String guardarArchivo(MultipartFile archivo, String nombreCarpeta) {
         try {
+            // La carpeta y el nombre vienen del cliente (NIT y nombre original
+            // del archivo): sin sanitizar, un '../' permitiría escribir fuera
+            // de la carpeta de la firma (path traversal, OWASP A01).
+            String carpetaSegura = sanitizarSegmento(nombreCarpeta);
             String originalName = archivo.getOriginalFilename() != null
-                    ? archivo.getOriginalFilename().replace(" ", "_")
+                    ? sanitizarSegmento(archivo.getOriginalFilename().replace(" ", "_"))
                     : "archivo";
             String nombreArchivo = System.currentTimeMillis() + "_" + originalName;
 
-            String rutaVirtual = nombreCarpeta + "/" + nombreArchivo;
+            String rutaVirtual = carpetaSegura + "/" + nombreArchivo;
             String urlFinal = supabaseUrl + rutaVirtual;
 
             RestTemplate restTemplate = new RestTemplate();
@@ -58,8 +62,10 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Resource cargarArchivo(String rutaRelativa) {
+        // La ruta viene de la BD, pero se valida igual: un valor almacenado
+        // con '../' no debe poder leer fuera del bucket.
+        String path = normalizarRuta(rutaRelativa);
         try {
-            String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
             String urlDescarga = supabaseUrl + path; // Cambio a variable dinámica
 
             RestTemplate restTemplate = new RestTemplate();
@@ -89,8 +95,8 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public void eliminarArchivo(String rutaRelativa) {
+        String path = normalizarRuta(rutaRelativa);
         try {
-            String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
             String urlEliminar = supabaseUrl + path; // Cambio a variable dinámica
 
             RestTemplate restTemplate = new RestTemplate();
@@ -114,5 +120,41 @@ public class FileStorageServiceImpl implements FileStorageService {
         } catch (Exception e) {
             throw new RuntimeException("Error al eliminar el archivo físico en Supabase: " + e.getMessage());
         }
+    }
+
+    /**
+     * Deja un segmento de ruta con solo caracteres seguros (letras, dígitos,
+     * guion, guion bajo y punto). Cualquier otro carácter (incluidas '/' y
+     * '\') se convierte en '_', y los puntos iniciales se eliminan para que
+     * el resultado nunca sea "." ni "..".
+     */
+    private static String sanitizarSegmento(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return "archivo";
+        }
+        String limpio = valor.replaceAll("[^A-Za-z0-9._-]", "_");
+        limpio = limpio.replaceAll("^\\.+", "");
+        if (limpio.isBlank() || limpio.equals(".") || limpio.equals("..")) {
+            return "archivo";
+        }
+        return limpio;
+    }
+
+    /**
+     * Valida una ruta relativa almacenada: sin segmentos "..", sin barras
+     * invertidas ni caracteres de control, y sin ser absoluta.
+     */
+    private static String normalizarRuta(String rutaRelativa) {
+        if (rutaRelativa == null || rutaRelativa.isBlank()) {
+            throw new IllegalArgumentException("La ruta del archivo no puede estar vacía.");
+        }
+        String path = rutaRelativa.startsWith("/") ? rutaRelativa.substring(1) : rutaRelativa;
+        for (String segmento : path.split("/")) {
+            if (segmento.equals("..") || segmento.contains("\\")
+                    || !segmento.chars().allMatch(c -> c >= 32 && c != 127)) {
+                throw new IllegalArgumentException("La ruta del archivo no es válida.");
+            }
+        }
+        return path;
     }
 }

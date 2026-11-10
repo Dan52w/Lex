@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.NivelSalarialResponseDTO;
 import com.example.lexcloud.entidades.Nivel_Salarial;
 import com.example.lexcloud.repositorios.NivelSalarial_Repository;
 import com.example.lexcloud.service.NivelSalarialService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class NivelSalarialServiceImpl implements NivelSalarialService {
     @Override
     public NivelSalarialResponseDTO actualizar(Integer id, NivelSalarialRequestDTO request) {
         return nivelSalarialRepository.findById(id).map(nivelSalarial -> {
-            // Actualizamos los campos necesarios
+            nivelSalarialRepository.findByRango(request.rango())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Nivel Salarial con el nombre '" + request.rango() + "' ya existe.");
+                    });
             nivelSalarial.setRango(request.rango());
 
-            return nivelSalarialMapper.toResponse(nivelSalarialRepository.save(nivelSalarial));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el nivel salarial con ID: " + id));
+            try {
+                return nivelSalarialMapper.toResponse(nivelSalarialRepository.save(nivelSalarial));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Nivel Salarial con el nombre '" + request.rango() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el nivel salarial con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!nivelSalarialRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Nivel salarial no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Nivel salarial no encontrado");
         }
         nivelSalarialRepository.deleteById(id);
     }

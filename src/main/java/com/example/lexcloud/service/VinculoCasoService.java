@@ -9,8 +9,11 @@ import java.util.Optional;
 public interface VinculoCasoService {
     VinculoCasoResponseDTO vincular(VinculoCasoRequestDTO request);
     List<VinculoCasoResponseDTO> listarPersonalAsignado(Integer idCaso);
+    List<VinculoCasoResponseDTO> listarPersonalAsignado(Integer idCaso, int page, int size);
     List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona);
+    List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona, int page, int size);
     List<VinculoCasoResponseDTO> listarPendientesAutorizacion();
+    List<VinculoCasoResponseDTO> listarPendientesAutorizacion(int page, int size);
     Optional<VinculoCasoResponseDTO> obtenerAbogadoPrincipal(Integer idCaso);
     Optional<VinculoCasoResponseDTO> obtenerCliente(Integer idCaso);
     void autorizarAcceso(Integer idVinculoCaso);

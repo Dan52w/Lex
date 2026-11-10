@@ -68,18 +68,31 @@ public class TipoCasoServiceImpl implements TipoCasoService {
     @Override
     public TipoCasoResponseDTO actualizar(Integer id, TipoCasoRequestDTO request) {
         return tipoCasoRepository.findById(id).map(oldTipoCaso -> {
-            if(tipoCasoRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("El tipo caso con el nombre '" + request.nombre() + "' ya existe.");
+            // W5 (cierre del veto de borrado): 'RAÍZ' tampoco se puede renombrar.
+            if ("RAÍZ".equals(oldTipoCaso.getNombre()) && !oldTipoCaso.getNombre().equals(request.nombre())) {
+                throw new IllegalStateException("El tipo de caso 'RAÍZ' es del sistema y no se puede renombrar.");
             }
+            tipoCasoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             oldTipoCaso.setNombre(request.nombre());
-            return tipoCasoMapper.toResponse(tipoCasoRepository.save(oldTipoCaso));
+            try {
+                return tipoCasoMapper.toResponse(tipoCasoRepository.save(oldTipoCaso));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Caso con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo caso con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
-        if(!tipoCasoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Tipo caso no encontrada con ID: " + id);
+        Tipo_Caso tipoCaso = tipoCasoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("No se puede eliminar: Tipo caso no encontrada con ID: " + id));
+        // W5: 'RAÍZ' es el tipo de caso raíz del sistema (seed V1); borrarlo rompería el caso maestro y los subtipos.
+        if ("RAÍZ".equals(tipoCaso.getNombre())) {
+            throw new IllegalStateException("No se puede eliminar el tipo de caso 'RAÍZ': es el tipo raíz del sistema.");
         }
         tipoCasoRepository.deleteById(id);
     }

@@ -34,8 +34,10 @@ public class EquipoAbogadoController {
 
     // 3. Listar todas las asignaciones activas del sistema
     @GetMapping("/activos")
-    public ResponseEntity<List<EquipoAbogadoResponseDTO>> listarTodosActivos() {
-        return ResponseEntity.ok(equipoAbogadoService.listarTodosActivos());
+    public ResponseEntity<List<EquipoAbogadoResponseDTO>> listarTodosActivos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(equipoAbogadoService.listarTodosActivos(page, size));
     }
 
     // 4. Todas las asignaciones (activas e inactivas) de un abogado

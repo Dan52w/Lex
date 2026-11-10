@@ -9,6 +9,7 @@ public interface EquipoAbogadoService {
     EquipoAbogadoResponseDTO crearAsignacion(EquipoAbogadoRequestDTO requestDTO);
     EquipoAbogadoResponseDTO obtenerPorId(Integer id);
     List<EquipoAbogadoResponseDTO> listarTodosActivos();
+    List<EquipoAbogadoResponseDTO> listarTodosActivos(int page, int size);
     List<EquipoAbogadoResponseDTO> listarPorAbogado(Integer idAbogado);
     List<EquipoAbogadoResponseDTO> listarActivosPorAbogado(Integer idAbogado);
     List<EquipoAbogadoResponseDTO> listarPorPersona(Integer idPersona);

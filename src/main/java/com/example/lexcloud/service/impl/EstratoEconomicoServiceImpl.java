@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.EstratoEconomicoResponseDTO;
 import com.example.lexcloud.entidades.Estrato_Economico;
 import com.example.lexcloud.repositorios.EstratoEconomico_Repository;
 import com.example.lexcloud.service.EstratoEconomicoService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class EstratoEconomicoServiceImpl implements EstratoEconomicoService {
     @Override
     public EstratoEconomicoResponseDTO actualizar(Integer id, EstratoEconomicoRequestDTO request) {
         return estratoEconomicoRepository.findById(id).map(estratoEconomico -> {
-            // Actualizamos los campos necesarios
+            estratoEconomicoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Estrato economico con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             estratoEconomico.setNombre(request.nombre());
 
-            return estratoEconomicoMapper.toResponse(estratoEconomicoRepository.save(estratoEconomico));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el estrato economico con ID: " + id));
+            try {
+                return estratoEconomicoMapper.toResponse(estratoEconomicoRepository.save(estratoEconomico));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Estrato economico con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el estrato economico con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!estratoEconomicoRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Estrato Economico no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Estrato Economico no encontrado");
         }
         estratoEconomicoRepository.deleteById(id);
     }

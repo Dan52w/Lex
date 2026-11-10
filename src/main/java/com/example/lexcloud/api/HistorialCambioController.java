@@ -30,8 +30,10 @@ public class HistorialCambioController {
     // 2. Obtener toda la línea de tiempo de un caso específico
     // GET /api/historial-cambios/caso/5
     @GetMapping("/caso/{idCaso}")
-    public ResponseEntity<List<HistorialCambioResponseDTO>> listarPorCaso(@PathVariable Integer idCaso) {
-        List<HistorialCambioResponseDTO> historial = historialService.listarPorCaso(idCaso);
+    public ResponseEntity<List<HistorialCambioResponseDTO>> listarPorCaso(@PathVariable Integer idCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<HistorialCambioResponseDTO> historial = historialService.listarPorCaso(idCaso, page, size);
         return ResponseEntity.ok(historial);
     }
 }

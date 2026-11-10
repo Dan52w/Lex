@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.TipoViviendaResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Vivienda;
 import com.example.lexcloud.repositorios.TipoVivienda_Repository;
 import com.example.lexcloud.service.TipoViviendaService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class TipoViviendaServiceImpl implements TipoViviendaService {
     @Override
     public TipoViviendaResponseDTO actualizar(Integer id, TipoViviendaRequestDTO request) {
         return tipoViviendaRepository.findById(id).map(tipoVivienda -> {
-            // Actualizamos los campos necesarios
+            tipoViviendaRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             tipoVivienda.setNombre(request.nombre());
 
-            return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el tipo vivienda con ID: " + id));
+            try {
+                return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo vivienda con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!tipoViviendaRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Tipo vivienda no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Tipo vivienda no encontrado");
         }
         tipoViviendaRepository.deleteById(id);
     }

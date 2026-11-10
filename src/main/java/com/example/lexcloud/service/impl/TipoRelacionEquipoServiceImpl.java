@@ -8,6 +8,7 @@ import com.example.lexcloud.dto.response.TipoRelacionEquipoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Relacion_Equipo;
 import com.example.lexcloud.repositorios.TipoRelacionEquipo_Repository;
 import com.example.lexcloud.service.TipoRelacionEquipoService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,17 +67,25 @@ public class TipoRelacionEquipoServiceImpl implements TipoRelacionEquipoService 
     @Override
     public TipoRelacionEquipoResponseDTO actualizar(Integer id, TipoRelacionEquipoRequestDTO request) {
         return tipoRelacionEquipoRepository.findById(id).map(tipoRelacionEquipo -> {
-            // Actualizamos los campos necesarios
+            tipoRelacionEquipoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             tipoRelacionEquipo.setNombre(request.nombre());
 
-            return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el tipo relacion equipo con ID: " + id));
+            try {
+                return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo relacion equipo con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!tipoRelacionEquipoRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Tipo relacion equipo no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Tipo relacion equipo no encontrado");
         }
         tipoRelacionEquipoRepository.deleteById(id);
     }

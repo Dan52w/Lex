@@ -11,7 +11,9 @@ import com.example.lexcloud.repositorios.Abogado_Repository;
 import com.example.lexcloud.repositorios.Agenda_Repository;
 import com.example.lexcloud.repositorios.Caso_Repository;
 import com.example.lexcloud.repositorios.TipoAgenda_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
 import com.example.lexcloud.service.AgentaService;
+import com.example.lexcloud.util.Paginacion;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +30,20 @@ public class AgendaServiceImpl implements AgentaService {
     private final TipoAgenda_Repository tipoAgendaRepository;
     private final Agenda_Repository agendaRepository;
     private final AgendaMapper agendaMapper;
+    private final ContextoSeguridad contextoSeguridad;
 
     public AgendaServiceImpl(Caso_Repository casoRepository,
                              Abogado_Repository abogadoRepository,
                              TipoAgenda_Repository tipoAgendaRepository,
                              Agenda_Repository agendaRepository,
-                             AgendaMapper agendaMapper) {
+                             AgendaMapper agendaMapper,
+                             ContextoSeguridad contextoSeguridad) {
         this.casoRepository = casoRepository;
         this.abogadoRepository = abogadoRepository;
         this.tipoAgendaRepository = tipoAgendaRepository;
         this.agendaRepository = agendaRepository;
         this.agendaMapper = agendaMapper;
+        this.contextoSeguridad = contextoSeguridad;
     }
 
     @Override
@@ -47,6 +52,8 @@ public class AgendaServiceImpl implements AgentaService {
         if (request.idCaso() != null && request.idCaso() == 1) {
             throw new EntityNotFoundException("Caso no Encontrado");
         }
+        // SVC-4: solo se agenda sobre casos a los que se tiene acceso.
+        contextoSeguridad.verificarAccesoACaso(request.idCaso());
 
         Agenda agenda = agendaMapper.toEntity(request);
 
@@ -70,24 +77,38 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarAbogado(Integer idAbogado) {
-        List<Agenda> agendas = agendaRepository.findByAbogadoId(idAbogado);
+        return listarAbogado(idAbogado, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    public List<AgendaResponseDTO> listarAbogado(Integer idAbogado, int page, int size) {
+        verificarAccesoAAbogadoPorId(idAbogado);
+        List<Agenda> agendas = agendaRepository.findByAbogadoId(idAbogado, Paginacion.crear(page, size));
 
         return agendaMapper.toResponseList(agendas);
     }
 
     @Override
     public List<AgendaResponseDTO> listarCaso(Integer idCaso) {
+        return listarCaso(idCaso, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    public List<AgendaResponseDTO> listarCaso(Integer idCaso, int page, int size) {
         if (idCaso == 1) {
             return List.of(); // Devuelve lista vacía inmediatamente
         }
+        contextoSeguridad.verificarAccesoACaso(idCaso);
 
-        List<Agenda> agendas = agendaRepository.findByCasoId(idCaso);
+        List<Agenda> agendas = agendaRepository.findByCasoId(idCaso, Paginacion.crear(page, size));
 
         return agendaMapper.toResponseList(agendas);
     }
 
     @Override
     public  List<AgendaResponseDTO> listarAbogadoFechaRange(Integer idAbogado, LocalDateTime inicio, LocalDateTime fin) {
+        verificarAccesoAAbogadoPorId(idAbogado);
+        // Sin variante paginada en el repositorio para el rango de fechas.
         List<Agenda> agendas = agendaRepository.findAgendaByAbogadoAndFechaRange(idAbogado, inicio, fin);
 
         return agendaMapper.toResponseList(agendas);
@@ -95,6 +116,10 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarCasoFechaRange(Integer idCaso, LocalDateTime inicio, LocalDateTime fin) {
+        if (idCaso == 1) {
+            return List.of();
+        }
+        contextoSeguridad.verificarAccesoACaso(idCaso);
         List<Agenda> agendas = agendaRepository.findByCasoIdAndFechaRange(idCaso, inicio, fin);
 
         return agendaMapper.toResponseList(agendas);
@@ -102,7 +127,13 @@ public class AgendaServiceImpl implements AgentaService {
 
     @Override
     public List<AgendaResponseDTO> listarProximaCitas(Integer idAbogado) {
-        List<Agenda> agendas = agendaRepository.findProximasCitasByAbogado(idAbogado);
+        return listarProximaCitas(idAbogado, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    public List<AgendaResponseDTO> listarProximaCitas(Integer idAbogado, int page, int size) {
+        verificarAccesoAAbogadoPorId(idAbogado);
+        List<Agenda> agendas = agendaRepository.findProximasCitasByAbogado(idAbogado, Paginacion.crear(page, size));
 
         return  agendaMapper.toResponseList(agendas);
     }
@@ -110,7 +141,10 @@ public class AgendaServiceImpl implements AgentaService {
     @Override
     public Optional<AgendaResponseDTO> buscarPorId(Integer id) {
         return agendaRepository.findById(id)
-                .map(agendaMapper::toResponse);
+                .map(agenda -> {
+                    contextoSeguridad.verificarAccesoACaso(agenda.getCaso().getId());
+                    return agendaMapper.toResponse(agenda);
+                });
     }
 
     @Override
@@ -121,6 +155,11 @@ public class AgendaServiceImpl implements AgentaService {
         }
 
         return agendaRepository.findById(id).map( oldAgenda -> {
+            // Solo se puede modificar una agenda de un caso al que se tiene acceso,
+            // y el caso destino también debe ser accesible.
+            contextoSeguridad.verificarAccesoACaso(oldAgenda.getCaso().getId());
+            contextoSeguridad.verificarAccesoACaso(request.idCaso());
+
             Abogado nuevoAbogado = abogadoRepository.findById(request.idAbogado())
                     .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
             Caso nuevoCaso = casoRepository.findById(request.idCaso())
@@ -151,8 +190,15 @@ public class AgendaServiceImpl implements AgentaService {
         Agenda agenda = agendaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Agenda no encontrado"));
 
+        contextoSeguridad.verificarAccesoACaso(agenda.getCaso().getId());
         agenda.setActiva(false);
 
         agendaRepository.save(agenda);
+    }
+
+    private void verificarAccesoAAbogadoPorId(Integer idAbogado) {
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado"));
+        contextoSeguridad.verificarAccesoAAbogado(abogado);
     }
 }

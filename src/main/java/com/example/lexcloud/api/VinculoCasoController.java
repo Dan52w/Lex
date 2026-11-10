@@ -26,18 +26,26 @@ public class VinculoCasoController {
     }
 
     @GetMapping("/caso/{idCaso}/personal")
-    public ResponseEntity<List<VinculoCasoResponseDTO>> listarPersonalAsignado(@PathVariable Integer idCaso) {
-        return ResponseEntity.ok(vinculoCasoService.listarPersonalAsignado(idCaso));
+    public ResponseEntity<List<VinculoCasoResponseDTO>> listarPersonalAsignado(
+            @PathVariable Integer idCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(vinculoCasoService.listarPersonalAsignado(idCaso, page, size));
     }
 
     @GetMapping("/persona/{idPersona}/mis-casos")
-    public ResponseEntity<List<VinculoCasoResponseDTO>> listarMisCasos(@PathVariable Integer idPersona) {
-        return ResponseEntity.ok(vinculoCasoService.listarMisCasos(idPersona));
+    public ResponseEntity<List<VinculoCasoResponseDTO>> listarMisCasos(
+            @PathVariable Integer idPersona,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(vinculoCasoService.listarMisCasos(idPersona, page, size));
     }
 
     @GetMapping("/pendientes")
-    public ResponseEntity<List<VinculoCasoResponseDTO>> listarPendientes() {
-        return ResponseEntity.ok(vinculoCasoService.listarPendientesAutorizacion());
+    public ResponseEntity<List<VinculoCasoResponseDTO>> listarPendientes(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(vinculoCasoService.listarPendientesAutorizacion(page, size));
     }
 
     @GetMapping("/caso/{idCaso}/principal")

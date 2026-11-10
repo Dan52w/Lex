@@ -28,8 +28,10 @@ public class ClienteController {
 
     // 2. Listar todos los clientes activos de una firma
     @GetMapping("/firma/{idFirma}")
-    public ResponseEntity<List<ClienteResponseDTO>> listarPorFirma(@PathVariable Integer idFirma) {
-        return ResponseEntity.ok(clienteService.listarFirma(idFirma));
+    public ResponseEntity<List<ClienteResponseDTO>> listarPorFirma(@PathVariable Integer idFirma,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(clienteService.listarFirma(idFirma, page, size));
     }
 
     // 3. Super Buscador Multi-filtro dentro de una firma
@@ -37,8 +39,10 @@ public class ClienteController {
     @GetMapping("/buscar")
     public ResponseEntity<List<ClienteResponseDTO>> buscarClientes(
             @RequestParam Integer idFirma,
-            @RequestParam String filtro) {
-        return ResponseEntity.ok(clienteService.buscarClientes(idFirma, filtro));
+            @RequestParam String filtro,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(clienteService.buscarClientes(idFirma, filtro, page, size));
     }
 
     // 4. Buscar por Identificación y Firma (Para pre-validaciones en el frontend)

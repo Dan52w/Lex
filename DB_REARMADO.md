@@ -153,3 +153,32 @@ este contenedor; `compileJava` y `bootRun` quedan para el PC):
   cuando el NIT realmente existe.
 - **B6.** `AuthServiceImpl.registrar` rechaza persona inactiva, persona
   sistema (cc `0000000000`) y persona que ya tiene login (400).
+
+## Refactor SOLID + OWASP Top 10, fases 1–3 (10-nov-2026)
+
+Revisión por capas sobre la base `fdfb198`, sin tocar las migraciones:
+
+- **Fase 1 entidades (30):** SRP se cumplía; `equals`/`hashCode` seguro por
+  id en las 30; `@JsonIgnore` ×38 (hash de contraseña, colecciones,
+  padre del árbol de casos); Bean Validation alineada a V1; se corrigieron
+  5 brechas de mapeo (nulidad/longitud/unique). Verificación final 0 fallos.
+- **Fase 2 repositorios (30):** todas las `@Query` validadas (B2 era la
+  única inválida); `SELECT DISTINCT` ×20 en `Caso_Repository` (el JOIN
+  duplicaba filas y rompía los `Optional` por radicado); `ESCAPE` en los
+  28 LIKE; 24 variantes paginadas nuevas; 4 métodos con alcance por firma.
+- **Fase 3 servicios:** `ContextoSeguridad` (único sitio que resuelve
+  usuario/firma autenticada), `BusquedaUtil` (escape LIKE), `Paginacion`
+  (tope 100). W3 crítico: `vincular()` ya no auto-autoriza (los vínculos
+  nacen pendientes; solo `autorizarAcceso`). SVC-1/2/3/4/5/6/7 corregidos;
+  S1: veto 403 a desactivar/modificar la persona sistema (`@SQLDelete` se
+  deja, decisión documentada); duplicados → 409; sin `getReference`;
+  `FileStorage` con sanitización anti path-traversal.
+- **Riesgos residuales:** si el usuario autenticado no tiene registro de
+  abogado, la verificación de firma permite la operación (fail-open;
+  arreglo estructural: firma en `Persona` o exigir registro de abogado);
+  inyección en `Content-Disposition` al descargar documentos; `FileStorage`
+  carga el archivo completo en memoria y sin tope de tamaño del servidor.
+- **Pendiente:** compilar y probar en caliente en PC (`gradlew test` /
+  `bootRun`): login, pendientes como admin y como abogado, crear vínculo
+  (debe quedar pendiente), pedir un caso ajeno (403), subir documento con
+  el NIT de otra firma (403).

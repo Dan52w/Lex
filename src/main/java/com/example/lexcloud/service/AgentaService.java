@@ -10,10 +10,13 @@ import java.util.Optional;
 public interface AgentaService {
     AgendaResponseDTO guardar(AgendaRequestDTO request);
     List<AgendaResponseDTO> listarAbogado(Integer idAbogado);
+    List<AgendaResponseDTO> listarAbogado(Integer idAbogado, int page, int size);
     List<AgendaResponseDTO> listarCaso(Integer idCaso);
+    List<AgendaResponseDTO> listarCaso(Integer idCaso, int page, int size);
     List<AgendaResponseDTO> listarAbogadoFechaRange(Integer idAbogado, LocalDateTime inicio, LocalDateTime fin);
     List<AgendaResponseDTO> listarCasoFechaRange(Integer idCaso, LocalDateTime inicio, LocalDateTime fin);
     List<AgendaResponseDTO> listarProximaCitas(Integer idAbogado);
+    List<AgendaResponseDTO> listarProximaCitas(Integer idAbogado, int page, int size);
     Optional<AgendaResponseDTO> buscarPorId(Integer id);
     AgendaResponseDTO actualizar(Integer id, AgendaRequestDTO request);
     void desactivarAgenda(Integer id);

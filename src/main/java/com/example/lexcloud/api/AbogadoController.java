@@ -27,8 +27,10 @@ public class AbogadoController {
 
     // 2. Listar todos por Firma (Activos)
     @GetMapping("/firma/{idFirma}")
-    public ResponseEntity<List<AbogadoResponseDTO>> listarPorFirma(@PathVariable Integer idFirma) {
-        return ResponseEntity.ok(abogadoService.listarTodos(idFirma));
+    public ResponseEntity<List<AbogadoResponseDTO>> listarPorFirma(@PathVariable Integer idFirma,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(abogadoService.listarTodos(idFirma, page, size));
     }
 
     // 3. Buscar por ID
@@ -45,8 +47,10 @@ public class AbogadoController {
     }
 
     @GetMapping("nombre/{idFirma}/{nombre}")
-    public ResponseEntity<List<AbogadoResponseDTO>> listarNombre(@PathVariable Integer idFirma, @PathVariable String nombre) {
-        return ResponseEntity.ok(abogadoService.listarNombre(idFirma, nombre));
+    public ResponseEntity<List<AbogadoResponseDTO>> listarNombre(@PathVariable Integer idFirma, @PathVariable String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(abogadoService.listarNombre(idFirma, nombre, page, size));
     }
 
     @GetMapping("/cedula/{idFirma}/{cc}")

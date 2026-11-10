@@ -49,16 +49,20 @@ public class CasoController {
 
     // Listar todos los casos vinculados y autorizados de una persona
     @GetMapping("/persona/{idPersona}")
-    public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona) {
-        return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(idPersona));
+    public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarVinculadosPersonaAutorizado(idPersona, page, size));
     }
 
     // Listar casos autorizados por Abogado y Cliente (Uso interno)
     @GetMapping("/cliente/{idPersona}/{idCliente}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorCliente(
             @PathVariable Integer idPersona,
-            @PathVariable Integer idCliente) {
-        return ResponseEntity.ok(casoService.listarCasosAutorizadosPorAbogadoYCliente(idPersona, idCliente));
+            @PathVariable Integer idCliente,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarCasosAutorizadosPorAbogadoYCliente(idPersona, idCliente, page, size));
     }
 
     // Listar por caso padre
@@ -71,24 +75,30 @@ public class CasoController {
     @GetMapping("/buscar/titulo")
     public ResponseEntity<List<CasoResponseDTO>> buscarPorTitulo(
             @RequestParam Integer idPersona,
-            @RequestParam String query) {
-        return ResponseEntity.ok(casoService.listarPorTitulo(query, idPersona));
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorTitulo(query, idPersona, page, size));
     }
 
     // Listar por nombre de estado y persona
     @GetMapping("/estado/{estadoNombre}/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorEstado(
             @PathVariable String estadoNombre,
-            @PathVariable Integer idPersona) {
-        return ResponseEntity.ok(casoService.listarPorEstado(estadoNombre, idPersona));
+            @PathVariable Integer idPersona,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorEstado(estadoNombre, idPersona, page, size));
     }
 
     // Listar por subtipo y persona
     @GetMapping("/subtipo/{idSubtipo}/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorSubtipo(
             @PathVariable Integer idSubtipo,
-            @PathVariable Integer idPersona) {
-        return ResponseEntity.ok(casoService.listarPorSubtipo(idSubtipo, idPersona));
+            @PathVariable Integer idPersona,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorSubtipo(idSubtipo, idPersona, page, size));
     }
 
     // Filtro avanzado: Subtipo + Estado + Persona
@@ -96,8 +106,10 @@ public class CasoController {
     public ResponseEntity<List<CasoResponseDTO>> filtrarAvanzado(
             @RequestParam Integer idPersona,
             @RequestParam Integer idEstado,
-            @RequestParam Integer idSubtipo) {
-        return ResponseEntity.ok(casoService.listarPorSubtipoAndEstado(idPersona, idEstado, idSubtipo));
+            @RequestParam Integer idSubtipo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorSubtipoAndEstado(idPersona, idEstado, idSubtipo, page, size));
     }
 
     // Buscar por Radicado Interno de forma segura
@@ -123,8 +135,10 @@ public class CasoController {
     @GetMapping("/buscar/global")
     public ResponseEntity<List<CasoResponseDTO>> superBuscador(
             @RequestParam Integer idPersona,
-            @RequestParam String query) {
-        return ResponseEntity.ok(casoService.superBuscador(query, idPersona));
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.superBuscador(query, idPersona, page, size));
     }
 
     // Listar por ID de Cliente exacto (Nueva implementación de apoyo)
@@ -132,8 +146,10 @@ public class CasoController {
     @GetMapping("/cliente-exacto/{idCliente}/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorClienteExacto(
             @PathVariable Integer idCliente,
-            @PathVariable Integer idPersona) {
-        return ResponseEntity.ok(casoService.listarPorCliente(idCliente, idPersona));
+            @PathVariable Integer idPersona,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorCliente(idCliente, idPersona, page, size));
     }
 
     // Buscar casos por coincidencias en el Nombre o Identificación del Cliente (Texto libre)
@@ -141,7 +157,9 @@ public class CasoController {
     @GetMapping("/buscar/cliente")
     public ResponseEntity<List<CasoResponseDTO>> buscarPorClienteNombreOIdentificacion(
             @RequestParam Integer idPersona,
-            @RequestParam String query) {
-        return ResponseEntity.ok(casoService.buscarPorNombreOIdentificacionCliente(query, idPersona));
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.buscarPorNombreOIdentificacionCliente(query, idPersona, page, size));
     }
 }

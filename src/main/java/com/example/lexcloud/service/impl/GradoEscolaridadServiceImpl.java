@@ -6,6 +6,7 @@ import com.example.lexcloud.dto.response.GradoEscolaridadResponseDTO;
 import com.example.lexcloud.entidades.Grado_Escolaridad;
 import com.example.lexcloud.repositorios.GradoEscolaridad_Repository;
 import com.example.lexcloud.service.GradoEscolaridadService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,17 +65,25 @@ public class GradoEscolaridadServiceImpl implements GradoEscolaridadService {
     @Override
     public GradoEscolaridadResponseDTO actualizar(Integer id, GradoEscolaridadRequestDTO request) {
         return gradoEscolaridadRepository.findById(id).map(gradoEscolaridad -> {
-            // Actualizamos los campos necesarios
+            gradoEscolaridadRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             gradoEscolaridad.setNombre(request.nombre());
 
-            return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
-        }).orElseThrow(() -> new RuntimeException("No se encontró el grado de escolaridad con ID: " + id));
+            try {
+                return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
+            }
+        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el grado de escolaridad con ID: " + id));
     }
 
     @Override
     public void eliminar(Integer id) {
         if (!gradoEscolaridadRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Grado de Escolaridad no encontrado");
+            throw new EntityNotFoundException("No se puede eliminar: Grado de Escolaridad no encontrado");
         }
         gradoEscolaridadRepository.deleteById(id);
     }

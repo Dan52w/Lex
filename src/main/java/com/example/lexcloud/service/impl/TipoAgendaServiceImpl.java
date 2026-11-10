@@ -64,11 +64,17 @@ public class TipoAgendaServiceImpl implements TipoAgendaService {
     @Override
     public TipoAgendaResponseDTO actualizar(Integer id, TipoAgentaResquestDTO request) {
         return tipoAgendaRepository.findById(id).map(odlTipoAgenda -> {
-            if(tipoAgendaRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("La agenda con el nombre '" + request.nombre() + "' ya existe.");
-            }
+            tipoAgendaRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Agenda con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             odlTipoAgenda.setNombre(request.nombre());
-            return tipoAgendaMapper.toResponse(tipoAgendaRepository.save(odlTipoAgenda));
+            try {
+                return tipoAgendaMapper.toResponse(tipoAgendaRepository.save(odlTipoAgenda));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Agenda con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo agenda con ID: " + id));
     }
 

@@ -64,11 +64,17 @@ public class TipoDocumentoServiceImpl implements TipoDocumentoService {
     @Override
     public TipoDocumentoResponseDTO actualizar(Integer id, TipoDocumentoRequestDTO request) {
         return tipoDocumentoRepository.findById(id).map(oldTipoCaso -> {
-            if(tipoDocumentoRepository.findByNombre(request.nombre()).isPresent()) {
-                throw new IllegalArgumentException("El tipo Documento con el nombre '" + request.nombre() + "' ya existe.");
-            }
+            tipoDocumentoRepository.findByNombre(request.nombre())
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new IllegalStateException("El Tipo Documento con el nombre '" + request.nombre() + "' ya existe.");
+                    });
             oldTipoCaso.setNombre(request.nombre());
-            return tipoDocumentoMapper.toResponse(tipoDocumentoRepository.save(oldTipoCaso));
+            try {
+                return tipoDocumentoMapper.toResponse(tipoDocumentoRepository.save(oldTipoCaso));
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalStateException("El Tipo Documento con el nombre '" + request.nombre() + "' ya existe.");
+            }
         }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo Documento con ID: " + id));
     }
 

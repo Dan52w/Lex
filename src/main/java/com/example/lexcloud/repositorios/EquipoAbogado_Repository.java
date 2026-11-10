@@ -1,6 +1,7 @@
 package com.example.lexcloud.repositorios;
 
 import com.example.lexcloud.entidades.Equipo_Abogados;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,4 +44,40 @@ public interface EquipoAbogado_Repository extends JpaRepository<Equipo_Abogados,
             "JOIN FETCH ea.abogado a " +
             "WHERE ea.tipoRelacion.id = :idTipoRelacion AND ea.activo = true")
     List<Equipo_Abogados> findActiveByRelationshipType(@Param("idTipoRelacion") Integer idTipoRelacion);
+
+    // =========================================================================
+    // VARIANTES CON ALCANCE POR FIRMA Y PAGINADAS
+    // Los métodos 7 y 8 no filtran por firma: devuelven asignaciones de TODAS
+    // las firmas, así que el servicio que los use debe ser solo-admin o pasar
+    // a estas variantes con firmaId. La variante paginada evita traer listas
+    // sin límite cuando la firma crece.
+    // =========================================================================
+
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "JOIN FETCH ea.persona p " +
+            "JOIN FETCH ea.tipoRelacion tr " +
+            "WHERE ea.activo = true AND a.firma.id = :firmaId")
+    List<Equipo_Abogados> findActiveWithRelationshipsByFirma(@Param("firmaId") Integer firmaId);
+
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "JOIN FETCH ea.persona p " +
+            "JOIN FETCH ea.tipoRelacion tr " +
+            "WHERE ea.activo = true AND a.firma.id = :firmaId")
+    List<Equipo_Abogados> findActiveWithRelationshipsByFirma(@Param("firmaId") Integer firmaId, Pageable pageable);
+
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "JOIN FETCH ea.persona p " +
+            "JOIN FETCH ea.tipoRelacion tr " +
+            "WHERE ea.activo = true")
+    List<Equipo_Abogados> findAllActiveWithRelationships(Pageable pageable);
+
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "WHERE ea.tipoRelacion.id = :idTipoRelacion AND ea.activo = true AND a.firma.id = :firmaId")
+    List<Equipo_Abogados> findActiveByRelationshipTypeAndFirma(
+            @Param("idTipoRelacion") Integer idTipoRelacion,
+            @Param("firmaId") Integer firmaId);
 }

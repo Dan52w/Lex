@@ -1,6 +1,7 @@
 package com.example.lexcloud.repositorios;
 
 import com.example.lexcloud.entidades.Cliente;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,19 +37,53 @@ public interface Cliente_Repository extends JpaRepository<Cliente, Integer> {
     // 3. EL SUPER BUSCADOR
     // Busca coincidencias parciales (case-insensitive) en: Identificación, Nombre Completo, Correo o Teléfono Móvil.
     // Siempre restringido a la Firma del abogado y que el cliente esté activo.
+    // ESCAPE '\': el filtro viene parametrizado, pero %, _ y \ dentro del filtro
+    // seguirían actuando como comodines LIKE; el ESCAPE permite que el servicio
+    // los neutralice escapándolos antes de llamar.
     @Query("SELECT c FROM Cliente c " +
             "LEFT JOIN FETCH c.tipoIdentificacion " +
             "LEFT JOIN FETCH c.tipoCliente " +
             "WHERE c.firma.id = :firmaId " +
             "AND c.activo = true " +
             "AND (" +
-            "  LOWER(c.identificacion) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
-            "  LOWER(CONCAT(c.nombres, ' ', c.primerApellido, ' ', COALESCE(c.segundoApellido, ''))) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
-            "  LOWER(c.correo) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
-            "  c.telefonoMovil LIKE CONCAT('%', :filtro, '%')" +
+            "  LOWER(c.identificacion) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  LOWER(CONCAT(c.nombres, ' ', c.primerApellido, ' ', COALESCE(c.segundoApellido, ''))) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  LOWER(c.correo) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  c.telefonoMovil LIKE CONCAT('%', :filtro, '%') ESCAPE '\\'" +
             ")")
     List<Cliente> superBuscador(
             @Param("filtro") String filtro,
             @Param("firmaId") Integer firmaId
+    );
+
+    // =========================================================================
+    // VARIANTES PAGINADAS
+    // Misma consulta que arriba, con Pageable para no traer listas sin límite
+    // cuando la firma acumula muchos clientes. Los servicios deben migrar
+    // los listados a estas variantes.
+    // =========================================================================
+
+    @Query("SELECT c FROM Cliente c " +
+            "LEFT JOIN FETCH c.tipoIdentificacion " +
+            "LEFT JOIN FETCH c.tipoCliente " +
+            "WHERE c.firma.id = :firmaId " +
+            "AND c.activo = true")
+    List<Cliente> findAllByFirmaId(@Param("firmaId") Integer firmaId, Pageable pageable);
+
+    @Query("SELECT c FROM Cliente c " +
+            "LEFT JOIN FETCH c.tipoIdentificacion " +
+            "LEFT JOIN FETCH c.tipoCliente " +
+            "WHERE c.firma.id = :firmaId " +
+            "AND c.activo = true " +
+            "AND (" +
+            "  LOWER(c.identificacion) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  LOWER(CONCAT(c.nombres, ' ', c.primerApellido, ' ', COALESCE(c.segundoApellido, ''))) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  LOWER(c.correo) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
+            "  c.telefonoMovil LIKE CONCAT('%', :filtro, '%') ESCAPE '\\'" +
+            ")")
+    List<Cliente> superBuscador(
+            @Param("filtro") String filtro,
+            @Param("firmaId") Integer firmaId,
+            Pageable pageable
     );
 }

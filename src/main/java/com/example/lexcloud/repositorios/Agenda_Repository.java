@@ -1,6 +1,7 @@
 package com.example.lexcloud.repositorios;
 
 import com.example.lexcloud.entidades.Agenda;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -54,4 +55,32 @@ public interface Agenda_Repository extends JpaRepository<Agenda, Integer> {
             "AND a.fechaExp > CURRENT_TIMESTAMP " +
             "ORDER BY a.fechaExp ASC")
     List<Agenda> findProximasCitasByAbogado(@Param("abogadoId") Integer abogadoId);
+
+    // =========================================================================
+    // VARIANTES PAGINADAS
+    // Misma consulta que arriba, con Pageable para no traer listas sin límite
+    // (las citas de un abogado se acumulan con el tiempo). Los servicios deben
+    // migrar los listados a estas variantes.
+    // =========================================================================
+
+    @Query("SELECT a FROM Agenda a " +
+            "JOIN FETCH a.tipo_Agenda ta " +
+            "JOIN FETCH a.caso c " +
+            "WHERE a.abogado.id = :abogadoId")
+    List<Agenda> findByAbogadoId(@Param("abogadoId") Integer abogadoId, Pageable pageable);
+
+    @Query("SELECT a FROM Agenda a " +
+            "JOIN FETCH a.tipo_Agenda ta " +
+            "JOIN FETCH a.caso c " +
+            "WHERE a.caso.id = :casoId")
+    List<Agenda> findByCasoId(@Param("casoId") Integer casoId, Pageable pageable);
+
+    @Query("SELECT a FROM Agenda a " +
+            "JOIN FETCH a.tipo_Agenda ta " +
+            "JOIN FETCH a.caso c " +
+            "WHERE a.abogado.id = :abogadoId " +
+            "AND a.activa = true " +
+            "AND a.fechaExp > CURRENT_TIMESTAMP " +
+            "ORDER BY a.fechaExp ASC")
+    List<Agenda> findProximasCitasByAbogado(@Param("abogadoId") Integer abogadoId, Pageable pageable);
 }

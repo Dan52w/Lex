@@ -1,6 +1,7 @@
 package com.example.lexcloud.repositorios;
 
 import com.example.lexcloud.entidades.Abogado;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,14 +27,33 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
     Optional<Abogado> findByPersonaId(Integer personaId);
 
     // 3. Buscar por nombre completo dentro de una firma (Optimizado con JOIN FETCH)
+    // ESCAPE '\': el nombre viene parametrizado, pero %, _ y \ dentro del nombre
+    // seguirían actuando como comodines LIKE; el ESCAPE permite que el servicio
+    // los neutralice escapándolos antes de llamar.
     @Query("SELECT a FROM Abogado a " +
             "JOIN FETCH a.persona " +
             "WHERE a.persona.activo = true " +
             "AND a.firma.id = :firmaId " +
-            "AND LOWER(CONCAT(a.persona.nombre, ' ', a.persona.apellido)) LIKE LOWER(CONCAT('%', :nombre, '%'))")
+            "AND LOWER(CONCAT(a.persona.nombre, ' ', a.persona.apellido)) LIKE LOWER(CONCAT('%', :nombre, '%')) ESCAPE '\\'")
     List<Abogado> findByAbogadoByNombre(@Param("firmaId") Integer firmaId, @Param("nombre") String nombre);
 
     // 4. Listar todos los abogados activos de una firma
     @Query("SELECT a FROM Abogado a WHERE a.firma.id = :firmaId AND a.persona.activo = true")
     List<Abogado> findByAbogadosByFirmaActivos(@Param("firmaId") Integer firmaId);
+
+    // =========================================================================
+    // VARIANTES PAGINADAS
+    // Misma consulta que arriba, con Pageable para no traer listas sin límite.
+    // Los servicios deben migrar los listados a estas variantes.
+    // =========================================================================
+
+    @Query("SELECT a FROM Abogado a " +
+            "JOIN FETCH a.persona " +
+            "WHERE a.persona.activo = true " +
+            "AND a.firma.id = :firmaId " +
+            "AND LOWER(CONCAT(a.persona.nombre, ' ', a.persona.apellido)) LIKE LOWER(CONCAT('%', :nombre, '%')) ESCAPE '\\'")
+    List<Abogado> findByAbogadoByNombre(@Param("firmaId") Integer firmaId, @Param("nombre") String nombre, Pageable pageable);
+
+    @Query("SELECT a FROM Abogado a WHERE a.firma.id = :firmaId AND a.persona.activo = true")
+    List<Abogado> findByAbogadosByFirmaActivos(@Param("firmaId") Integer firmaId, Pageable pageable);
 }

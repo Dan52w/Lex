@@ -50,6 +50,14 @@ public class AgendaServiceImpl implements AgentaService {
 
         Agenda agenda = agendaMapper.toEntity(request);
 
+        // Control de valores predefinidos si los opcionales del DTO vienen nulos
+        if (agenda.getActiva() == null) {
+            agenda.setActiva(true);
+        }
+        if (agenda.getDescripcion() == null) {
+            agenda.setDescripcion("");
+        }
+
         agenda.setAbogado(abogadoRepository.findById(request.idAbogado())
                 .orElseThrow(() -> new EntityNotFoundException("Abogado no Encontrado")));
         agenda.setCaso(casoRepository.findById(request.idCaso())
@@ -123,9 +131,16 @@ public class AgendaServiceImpl implements AgentaService {
             oldAgenda.setAbogado(nuevoAbogado);
             oldAgenda.setCaso(nuevoCaso);
             oldAgenda.setTipo_Agenda(nuevoTipoAgenda);
-            oldAgenda.setDescripcion(request.descripcion());
-            oldAgenda.setFechaExp(request.fechaExp());
-            oldAgenda.setActiva(request.activa());
+            // Solo se sobrescriben los opcionales cuando vienen con valor
+            if (request.descripcion() != null) {
+                oldAgenda.setDescripcion(request.descripcion());
+            }
+            if (request.fechaExp() != null) {
+                oldAgenda.setFechaExp(request.fechaExp());
+            }
+            if (request.activa() != null) {
+                oldAgenda.setActiva(request.activa());
+            }
 
             return agendaMapper.toResponse(agendaRepository.save(oldAgenda));
         }).orElseThrow(() -> new EntityNotFoundException("No se encontro la Agenda: " + id));

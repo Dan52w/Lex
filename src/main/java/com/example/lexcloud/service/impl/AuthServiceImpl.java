@@ -36,6 +36,21 @@ public class AuthServiceImpl implements AuthService {
         Persona persona = personaRepository.findById(request.idPersona())
                 .orElseThrow(() -> new EntityNotFoundException("La persona no existe"));
 
+        // La persona debe estar activa para poder registrar credenciales
+        if (!Boolean.TRUE.equals(persona.getActivo())) {
+            throw new IllegalArgumentException("La persona está inactiva y no puede registrar credenciales");
+        }
+
+        // La persona del sistema (sembrada por la migración V1) nunca inicia sesión
+        if ("0000000000".equals(persona.getCc())) {
+            throw new IllegalArgumentException("La persona del sistema no puede registrar credenciales");
+        }
+
+        // La PK de logins es id_persona: una persona solo puede tener un login
+        if (loginRepository.existsById(request.idPersona())) {
+            throw new IllegalArgumentException("La persona ya tiene credenciales registradas");
+        }
+
         Login login = new Login();
         login.setCorreo(request.correo());
         login.setPersona(persona);

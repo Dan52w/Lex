@@ -286,7 +286,11 @@ public class CasoServiceImpl implements CasoService {
 
     private void crearVinculo(Caso caso, Integer idPersona, Cliente cliente, boolean autorizado) {
         Persona persona = personaRepository.getReferenceById(idPersona);
-        Vinculo tipoVinculo = vinculoRepository.getReferenceById(2);
+        // El vínculo 'Principal' se busca por nombre, no por id mágico: en
+        // una base nueva solo existe 'SIN VÍNCULO' y el id 2 no está garantizado.
+        Vinculo tipoVinculo = vinculoRepository.findByNombre("Principal")
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Vínculo 'Principal' no configurado en la base de datos"));
 
         Vinculo_Caso vinculoCaso = new Vinculo_Caso();
         vinculoCaso.setCaso(caso);

@@ -31,12 +31,22 @@ public class FirmaServiceImpl implements FirmaService {
         if (firmaRepository.findByNit(request.nit()).isPresent()) {
             throw new IllegalStateException("La Firma con el NIT '" + request.nit() + "' ya existe.");
         }
+        // Defensa en profundidad (el DTO ya exige @NotNull): que un null
+        // nunca llegue a la BD, donde integrante es NOT NULL.
+        if (request.integrante() == null) {
+            throw new IllegalArgumentException("Debe indicar el número de integrantes de la firma.");
+        }
 
         Firma firma = firmaMapper.toEntity(request);
         try {
             return firmaMapper.toResponse(firmaRepository.save(firma));
         } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("La Firma con el NIT '" + request.nit() + "' ya existe.");
+            // El mensaje de NIT duplicado solo aplica si el NIT existe de verdad;
+            // cualquier otra violación de integridad no debe reportarse como tal.
+            if (firmaRepository.findByNit(request.nit()).isPresent()) {
+                throw new IllegalStateException("La Firma con el NIT '" + request.nit() + "' ya existe.");
+            }
+            throw new IllegalStateException("No se pudo guardar la firma. Verifique los datos e intente nuevamente.", ex);
         }
     }
 
@@ -65,7 +75,10 @@ public class FirmaServiceImpl implements FirmaService {
         return firmaRepository.findById(id).map(firma -> {
             // Actualizamos los datos básicos
             firma.setNombre(request.nombre());
-            firma.setIntegrante(request.integrante());
+            // Solo se sobrescribe el número de integrantes cuando viene con valor
+            if (request.integrante() != null) {
+                firma.setIntegrante(request.integrante());
+            }
 
             // Nota: Generalmente el NIT no se debería poder editar si ya hay documentos
             // guardados en carpetas con ese nombre. Si se edita, habría que renombrar carpetas.

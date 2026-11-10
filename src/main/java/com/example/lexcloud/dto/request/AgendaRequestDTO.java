@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public record AgendaRequestDTO(
         @NotNull(message = "Debe haber un Abogado referenciado")
         Integer idAbogado,
+        @NotNull(message = "Debe haber un Caso referenciado")
         Integer idCaso,
         @NotNull(message = "Debe seleccionar que tipo de evento es")
         Integer idTipoAgenda,

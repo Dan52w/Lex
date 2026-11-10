@@ -13,6 +13,7 @@ public record CasoRequestDTO(
         Integer idCliente,
         @NotBlank(message = "El caso debe tener un titulo")
         String titulo,
+        @NotBlank(message = "El caso debe tener una descripcion")
         String descripcion,
         @Pattern(regexp = "^\\d{23}$", message = "El radicado judicial debe tener exactamente 23 dígitos numéricos")
         String radicadoJudicial,
@@ -20,6 +21,7 @@ public record CasoRequestDTO(
         Integer idEstado,
         @NotNull(message = "Selecciona el tipo de caso")
         Integer idSubtipo,
+        @NotNull(message = "El caso debe tener una fecha de inicio")
         LocalDate fecha_Inicio,
         @NotNull(message = "El caso debe estar referenciado a una firma")
         Integer idFirma,

@@ -1,7 +1,9 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
-import lombok.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -14,9 +16,12 @@ public class Estado_Civil {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @NotNull
+    @Size(max = 50)
     @Column(nullable = false, length = 50, unique = true)
     private String nombre;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "estadoCivil")
     private Set<Cliente> clientes = new LinkedHashSet<>();
 
@@ -42,5 +47,21 @@ public class Estado_Civil {
 
     public void setClientes(Set<Cliente> clientes) {
         this.clientes = clientes;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Estado_Civil other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Estado_Civil.class.hashCode();
     }
 }

@@ -1,6 +1,9 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -13,24 +16,31 @@ public class Abogado {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @NotNull
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_persona", nullable = false)
+    @JoinColumn(name = "id_persona", nullable = false, unique = true)
     private Persona persona;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_firma", nullable = false)
     private Firma firma;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tipo_abogado", nullable = false)
     private Tipo_Abogado tipo_Abogado;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "abogado")
     private Set<Agenda> agendas = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "abogado")
     private Set<Equipo_Abogados> equiposAbogados = new LinkedHashSet<>();
 
+    @NotNull
+    @Size(max = 255)
     @Column(name = "tarjeta_profesional", nullable = false)
     private String tarjeta_Profesional;
 
@@ -88,5 +98,21 @@ public class Abogado {
 
     public void setTarjeta_Profesional(String tarjeta_Profesional) {
         this.tarjeta_Profesional = tarjeta_Profesional;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Abogado other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Abogado.class.hashCode();
     }
 }

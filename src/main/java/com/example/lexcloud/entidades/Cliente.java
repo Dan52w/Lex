@@ -1,6 +1,10 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,10 +18,12 @@ public class Cliente {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_firma", nullable = false)
     private Firma firma;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tipo_cliente", nullable = false)
     private Tipo_Cliente tipoCliente;
@@ -32,19 +38,25 @@ public class Cliente {
     // 1. IDENTIFICACIÓN Y DATOS BÁSICOS
     // =========================================================================
 
-    @Column(name = "identificacion", length = 50)
+    @NotNull
+    @Size(max = 50)
+    @Column(name = "identificacion", length = 50, nullable = false)
     private String identificacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tipo_identificacion")
     private Tipo_Identificacion tipoIdentificacion;
 
-    @Column(name = "nombres", length = 100)
+    @NotNull
+    @Size(max = 100)
+    @Column(name = "nombres", length = 100, nullable = false)
     private String nombres;
 
+    @Size(max = 100)
     @Column(name = "primer_apellido", length = 100)
     private String primerApellido;
 
+    @Size(max = 100)
     @Column(name = "segundo_apellido", length = 100)
     private String segundoApellido;
 
@@ -59,9 +71,11 @@ public class Cliente {
     @Column(name = "fecha_nacimiento")
     private LocalDate fechaNacimiento;
 
+    @Size(max = 150)
     @Column(name = "lugar_nacimiento", length = 150)
     private String lugarNacimiento;
 
+    @Size(max = 100)
     @Column(name = "nacionalidad", length = 100)
     private String nacionalidad;
 
@@ -69,31 +83,42 @@ public class Cliente {
     // 2. UBICACIÓN Y CONTACTO
     // =========================================================================
 
+    @Size(max = 150)
     @Column(name = "ciudad_residencia", length = 150)
     private String ciudadResidencia;
 
+    @Size(max = 150)
     @Column(name = "localidad_sector", length = 150)
     private String localidadSector;
 
+    @Size(max = 150)
     @Column(name = "barrio", length = 150)
     private String barrio;
 
+    @Size(max = 250)
     @Column(name = "direccion_residencia", length = 250)
     private String direccionResidencia;
 
+    @Size(max = 20)
     @Column(name = "telefono_residencia", length = 20)
     private String telefonoResidencia;
 
+    @Size(max = 250)
     @Column(name = "direccion_oficina", length = 250)
     private String direccionOficina;
 
+    @Size(max = 20)
     @Column(name = "telefono_oficina", length = 20)
     private String telefonoOficina;
 
+    @Size(max = 20)
     @Column(name = "telefono_movil", length = 20)
     private String telefonoMovil;
 
-    @Column(name = "correo", length = 250)
+    @NotNull
+    @Email
+    @Size(max = 250)
+    @Column(name = "correo", length = 250, nullable = false)
     private String correo;
 
     // =========================================================================
@@ -124,6 +149,7 @@ public class Cliente {
     @JoinColumn(name = "id_discapacidad")
     private Discapacidad discapacidad;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vinculo_Caso> vinculoCasos = new ArrayList<>();
 
@@ -373,5 +399,21 @@ public class Cliente {
 
     public void setVinculoCasos(List<Vinculo_Caso> vinculoCasos) {
         this.vinculoCasos = vinculoCasos;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Cliente other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Cliente.class.hashCode();
     }
 }

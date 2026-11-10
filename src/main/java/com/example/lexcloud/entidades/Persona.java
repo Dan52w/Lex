@@ -1,6 +1,9 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.SQLDelete;
 
@@ -17,41 +20,57 @@ public class Persona {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @NotNull
+    @Size(max = 150)
     @Column(name = "nombre", nullable = false, length = 150)
     private String nombre;
 
+    @NotNull
+    @Size(max = 150)
     @Column(name = "apellido", nullable = false, length = 150)
     private String apellido;
 
-    @Column(name = "cc", nullable = false, length = 20)
+    @NotNull
+    @Size(max = 20)
+    @Column(name = "cc", nullable = false, length = 20, unique = true)
     private String cc;
 
+    @NotNull
     @ColumnDefault("true")
     @Column(name = "activo", nullable = false)
     private Boolean activo;
 
+    @NotNull
+    @Size(max = 20)
     @Column(name = "telefono", nullable = false, length = 20)
     private String telefono;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_rol", nullable = false)
     private Rol rol;
 
+    @NotNull
     @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
+    @JsonIgnore
     @OneToOne(mappedBy = "persona")
     private Abogado abogado;
 
+    @JsonIgnore
     @OneToOne(mappedBy = "persona")
     private Login login;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "personaFirma")
     private Set<Vinculo_Caso> vinculosComoFirma = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "persona")
     private Set<Historial_Cambio> historial_Cambios = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "persona")
     private Set<Equipo_Abogados> equiposAbogados = new LinkedHashSet<>();
 
@@ -157,5 +176,21 @@ public class Persona {
 
     public void setTelefono(String telefono) {
         this.telefono = telefono;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Persona other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Persona.class.hashCode();
     }
 }

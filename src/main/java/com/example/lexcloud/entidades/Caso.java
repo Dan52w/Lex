@@ -1,6 +1,10 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
@@ -17,22 +21,31 @@ public class Caso {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @NotNull
+    @Size(max = 255)
     @Column(name = "titulo", nullable = false)
     private String titulo;
 
+    @NotNull
     @Column(name = "descripcion", nullable = false, length = Integer.MAX_VALUE)
     private String descripcion;
 
+    @NotNull
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fecha_Inicio;
 
+    @NotNull
     @ColumnDefault("true")
     @Column(name = "activo", nullable = false)
     private Boolean activo;
 
+    @NotNull
+    @Pattern(regexp = "\\d{10}")
     @Column(name = "radicado_interno", nullable = false, unique = true, length = 10)
     private String radicadoInterno;
 
+    @NotNull
+    @Pattern(regexp = "\\d{23}")
     @Column(name = "radicado_judicial", nullable = false, unique = true, length = 23)
     private String radicadoJudicial;
 
@@ -40,30 +53,38 @@ public class Caso {
     @JoinColumn(name = "id_estado", nullable = false)
     private Estado estado;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_subtipo_caso", nullable = false)
     private Subtipo_Caso subtipo_Caso;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_firma", nullable = false)
     private Firma firma;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_caso_padre")
     private Caso casoPadre;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "casoPadre", cascade = CascadeType.ALL)
     private List<Caso> subCasos = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "caso")
     private Set<Vinculo_Caso> vinculo_Casos = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "caso")
     private Set<Agenda> agendas = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "caso")
     private Set<Historial_Cambio> historial_Cambios = new LinkedHashSet<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "caso")
     private Set<Documento> documentos = new LinkedHashSet<>();
 
@@ -73,14 +94,6 @@ public class Caso {
 
     public void setFirma(Firma firma) {
         this.firma = firma;
-    }
-
-    public String getRadicado_Judicial() {
-        return radicadoJudicial;
-    }
-
-    public void setRadicado_Judicial(String radicado_Judicial) {
-        this.radicadoJudicial = radicado_Judicial;
     }
 
     public Caso getCasoPadre() {
@@ -201,5 +214,21 @@ public class Caso {
 
     public void setRadicadoJudicial(String radicadoJudicial) {
         this.radicadoJudicial = radicadoJudicial;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Caso other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Caso.class.hashCode();
     }
 }

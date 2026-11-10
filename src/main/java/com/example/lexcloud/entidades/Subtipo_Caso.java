@@ -1,6 +1,9 @@
 package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -12,13 +15,17 @@ public class Subtipo_Caso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "nombre")
+    @NotNull
+    @Size(max = 150)
+    @Column(name = "nombre", length = 150, nullable = false)
     private String nombre;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tipo_caso", nullable = false)
     private Tipo_Caso tipoCaso;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "subtipo_Caso")
     private Set<Caso> casos = new LinkedHashSet<>();
 
@@ -52,5 +59,21 @@ public class Subtipo_Caso {
 
     public void setCasos(Set<Caso> casos) {
         this.casos = casos;
+    }
+
+    // Igualdad por identidad de BD: dos instancias representan la misma
+    // fila si tienen el mismo id. Con id null (aun no persistido) solo es
+    // igual a si mismo. hashCode constante por clase: el id cambia de null
+    // a valor al persistir y un hash basado en el id corromperia los Set.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Subtipo_Caso other)) return false;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Subtipo_Caso.class.hashCode();
     }
 }

@@ -25,8 +25,10 @@ public class TipoRelacionEquipoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoRelacionEquipoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoRelacionEquipoService.listarTodos());
+    public ResponseEntity<List<TipoRelacionEquipoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoRelacionEquipoService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class TipoRelacionEquipoController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<TipoRelacionEquipoResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(tipoRelacionEquipoService.listarPorNombre(nombre));
+    public ResponseEntity<List<TipoRelacionEquipoResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoRelacionEquipoService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

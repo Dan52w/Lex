@@ -26,8 +26,10 @@ public class EstadoCivilController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EstadoCivilResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(estadoCivilService.listarTodos());
+    public ResponseEntity<List<EstadoCivilResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(estadoCivilService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -45,8 +47,10 @@ public class EstadoCivilController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<EstadoCivilResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(estadoCivilService.listarPorNombre(nombre));
+    public ResponseEntity<List<EstadoCivilResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(estadoCivilService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

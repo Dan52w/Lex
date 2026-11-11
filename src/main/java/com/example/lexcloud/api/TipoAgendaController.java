@@ -27,8 +27,10 @@ public class TipoAgendaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoAgendaResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoAgendaService.listarTodo());
+    public ResponseEntity<List<TipoAgendaResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoAgendaService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")

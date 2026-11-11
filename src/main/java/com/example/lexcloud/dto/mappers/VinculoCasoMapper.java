@@ -19,9 +19,13 @@ public interface VinculoCasoMapper {
     @Mapping(source = "caso.titulo", target = "tituloCaso")
     @Mapping(source = "vinculo.id", target = "idVinculo")
     @Mapping(source = "vinculo.nombre", target = "nombreVinculo")
+    // M13: el DTO de respuesta CONSERVA el campo `autorizado` para no romper
+    // el front; se deriva del estado (AUTORIZADO), nunca se lee de un flag.
+    @Mapping(target = "autorizado", expression = "java(com.example.lexcloud.entidades.EstadoVinculo.AUTORIZADO.equals(vinculoCaso.getEstado()))")
     VinculoCasoResponseDTO toResponse(Vinculo_Caso vinculoCaso);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "estado", ignore = true)
     @Mapping(target = "personaFirma", ignore = true)
     @Mapping(target = "cliente", ignore = true)
     @Mapping(target = "caso", ignore = true)

@@ -27,8 +27,10 @@ public class TipoAbogadoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoAbogadoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoAbogadoService.listarTodo());
+    public ResponseEntity<List<TipoAbogadoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoAbogadoService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")

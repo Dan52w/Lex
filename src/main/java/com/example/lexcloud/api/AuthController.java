@@ -6,10 +6,7 @@ import com.example.lexcloud.dto.response.AuthResponseDTO;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,8 +32,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(
-            @Valid @RequestBody LoginRequestDTO loginRequest,
-            HttpServletResponse response) {
+            @Valid @RequestBody LoginRequestDTO loginRequest) {
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -46,20 +42,11 @@ public class AuthController {
 
         String jwt = jwtUtil.generateJwtToken(authentication);
 
-        // CAMBIO CLAVE: SameSite=None es indispensable para peticiones
-        // cross-origin (frontend en Vercel → backend en Render).
-        // Sin "None", el navegador descarta la cookie en peticiones cross-site
-        // y el AuthTokenFilter nunca la recibe, forzando re-login.
-        // Secure=true es obligatorio cuando SameSite=None.
-        ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", jwt)
-                .httpOnly(true)
-                .secure(true)          // SIEMPRE true con SameSite=None
-                .sameSite("None")      // Necesario para cross-domain
-                .path("/")
-                .maxAge(24 * 60 * 60)  // 24 horas
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, jwtCookie.toString());
+        // C10 — token SOLO Bearer: ya no se crea ninguna cookie jwt_token.
+        // El token viaja únicamente en el cuerpo de la respuesta y el
+        // cliente debe enviarlo en el header `Authorization: Bearer <token>`
+        // en cada petición. Sin cookie de sesión no hay nada que un sitio
+        // malicioso pueda hacer enviar al navegador (ver WebSecurityConfig).
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
@@ -82,20 +69,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
-        // Para invalidar la cookie el Set-Cookie debe usar exactamente los
-        // mismos atributos que cuando se creó (mismo path, same SameSite, etc.)
-        // de lo contrario el navegador no la encuentra para borrarla.
-        ResponseCookie expiredCookie = ResponseCookie.from("jwt_token", "")
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
-                .path("/")
-                .maxAge(0)  // maxAge=0 borra la cookie
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
-
+    public ResponseEntity<?> logout() {
+        // C10 — con Bearer-only no hay sesión de servidor que invalidar ni
+        // cookie que borrar: el cliente descarta el token por su cuenta.
+        // El endpoint se mantiene (ahora exige autenticación) como punto
+        // explícito de cierre de sesión del cliente.
         return ResponseEntity.ok("Sesión cerrada correctamente");
     }
 

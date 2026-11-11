@@ -26,8 +26,10 @@ public class TipoClienteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoClienteResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoClienteService.listarTodo());
+    public ResponseEntity<List<TipoClienteResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoClienteService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")
@@ -38,8 +40,10 @@ public class TipoClienteController {
     }
 
     @GetMapping("/buscar/{nombre}")
-    public ResponseEntity<List<TipoClienteResponseDTO>> buscarPorNombre(@PathVariable String nombre) {
-        return ResponseEntity.ok(tipoClienteService.listarPorNombre(nombre));
+    public ResponseEntity<List<TipoClienteResponseDTO>> buscarPorNombre(@PathVariable String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoClienteService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

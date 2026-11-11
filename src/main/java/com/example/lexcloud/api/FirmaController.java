@@ -44,8 +44,10 @@ public class FirmaController {
 
     // 4. Listar firmas por nombre (Búsqueda de texto)
     @GetMapping("/buscar/{nombre}")
-    public ResponseEntity<List<FirmaResponseDTO>> listarPorNombre(@PathVariable String nombre) {
-        return ResponseEntity.ok(firmaService.listarPorNombre(nombre));
+    public ResponseEntity<List<FirmaResponseDTO>> listarPorNombre(@PathVariable String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(firmaService.listarPorNombre(nombre, page, size));
     }
 
     // 5. Actualizar datos de la firma

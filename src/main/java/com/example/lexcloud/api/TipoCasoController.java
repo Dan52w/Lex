@@ -27,8 +27,10 @@ public class TipoCasoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoCasoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoCasoService.listarTodo());
+    public ResponseEntity<List<TipoCasoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoCasoService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")

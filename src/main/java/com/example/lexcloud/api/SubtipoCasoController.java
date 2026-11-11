@@ -26,8 +26,10 @@ public class SubtipoCasoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SubtipoCasoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(subtipoCasoService.listarTodo());
+    public ResponseEntity<List<SubtipoCasoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(subtipoCasoService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")
@@ -39,8 +41,10 @@ public class SubtipoCasoController {
 
     // Endpoint específico para filtrar por el padre (Tipo de Caso)
     @GetMapping("/tipo/{idTipoCaso}")
-    public ResponseEntity<List<SubtipoCasoResponseDTO>> listarPorTipo(@PathVariable Integer idTipoCaso) {
-        List<SubtipoCasoResponseDTO> lista = subtipoCasoService.listarPorTipo(idTipoCaso);
+    public ResponseEntity<List<SubtipoCasoResponseDTO>> listarPorTipo(@PathVariable Integer idTipoCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<SubtipoCasoResponseDTO> lista = subtipoCasoService.listarPorTipo(idTipoCaso, page, size);
         return ResponseEntity.ok(lista);
     }
 

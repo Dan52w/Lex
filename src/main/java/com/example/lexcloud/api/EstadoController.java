@@ -28,8 +28,10 @@ public class EstadoController {
 
     // 2. Listar todos los estados (Útil para llenar Selects/Dropdowns en el Front)
     @GetMapping
-    public ResponseEntity<List<EstadoResponseDTO>> listarTodos() {
-        return ResponseEntity.ok(estadoService.listarTodos());
+    public ResponseEntity<List<EstadoResponseDTO>> listarTodos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(estadoService.listarTodos(page, size));
     }
 
     // 3. Buscar por ID
@@ -43,6 +45,16 @@ public class EstadoController {
     // 4. Buscar por nombre exacto
     @GetMapping("/buscar/{nombre}")
     public ResponseEntity<EstadoResponseDTO> buscarPorNombre(@PathVariable String nombre) {
+        return estadoService.buscarPorNombre(nombre)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 4b. Buscar por nombre exacto por query param (patrón de catálogo:
+    // GET /buscar?nombre=, como DiscapacidadController y EstadoCivilController).
+    // El /buscar/{nombre} existente se conserva.
+    @GetMapping("/buscar")
+    public ResponseEntity<EstadoResponseDTO> buscarPorNombreQuery(@RequestParam String nombre) {
         return estadoService.buscarPorNombre(nombre)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

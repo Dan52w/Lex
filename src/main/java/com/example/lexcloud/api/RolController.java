@@ -26,8 +26,10 @@ public class RolController {
     }
 
     @GetMapping
-    public ResponseEntity<List<RolResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(rolService.listarTodo());
+    public ResponseEntity<List<RolResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(rolService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")
@@ -45,8 +47,10 @@ public class RolController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<RolResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(rolService.listarPorNombre(nombre));
+    public ResponseEntity<List<RolResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(rolService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

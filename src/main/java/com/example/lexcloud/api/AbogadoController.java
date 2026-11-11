@@ -42,8 +42,10 @@ public class AbogadoController {
     }
 
     @GetMapping("/{idFirma}/{especialidad}")
-    public ResponseEntity<List<AbogadoResponseDTO>> listarEspecialidad(@PathVariable Integer idFirma, @PathVariable String especialidad) {
-        return ResponseEntity.ok(abogadoService.listarTipo(idFirma, especialidad));
+    public ResponseEntity<List<AbogadoResponseDTO>> listarEspecialidad(@PathVariable Integer idFirma, @PathVariable String especialidad,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(abogadoService.listarTipo(idFirma, especialidad, page, size));
     }
 
     @GetMapping("nombre/{idFirma}/{nombre}")
@@ -77,6 +79,15 @@ public class AbogadoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
         abogadoService.desactivarAbogado(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 6. Reactivar abogado (solo admin, guarda en el servicio).
+    // El desactivar es DELETE /{id}; no hay PATCH /desactivar que espejear,
+    // así que se usa PATCH /{id}/reactivar (ver CasoController).
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<Void> reactivar(@PathVariable Integer id) {
+        abogadoService.reactivarAbogado(id);
         return ResponseEntity.noContent().build();
     }
 }

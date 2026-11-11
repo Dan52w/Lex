@@ -69,6 +69,18 @@ public class VinculoCasoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/desautorizar")
+    public ResponseEntity<Void> desautorizarAcceso(@PathVariable Integer id) {
+        vinculoCasoService.desautorizarAcceso(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/rechazar")
+    public ResponseEntity<Void> rechazarAcceso(@PathVariable Integer id) {
+        vinculoCasoService.rechazarAcceso(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarVinculo(@PathVariable Integer id) {
         vinculoCasoService.eliminarVinculo(id);

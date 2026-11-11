@@ -26,8 +26,10 @@ public class DiscapacidadController {
     }
 
     @GetMapping
-    public ResponseEntity<List<DiscapacidadResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(discapacidadService.listarTodos());
+    public ResponseEntity<List<DiscapacidadResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(discapacidadService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -45,8 +47,10 @@ public class DiscapacidadController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<DiscapacidadResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(discapacidadService.listarPorNombre(nombre));
+    public ResponseEntity<List<DiscapacidadResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(discapacidadService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

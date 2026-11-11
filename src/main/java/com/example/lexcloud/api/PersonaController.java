@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/personas")
 public class PersonaController {
@@ -58,5 +60,22 @@ public class PersonaController {
     public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
         personaService.desactivar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Reactivar persona (solo admin, guarda en el servicio).
+    // El desactivar es DELETE /{id}; no hay PATCH /desactivar que espejear,
+    // así que se usa PATCH /{id}/reactivar (ver CasoController).
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<Void> reactivar(@PathVariable Integer id) {
+        personaService.reactivar(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Listar todas las personas (solo admin, guarda en el servicio).
+    @GetMapping
+    public ResponseEntity<List<PersonaResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(personaService.listarTodo(page, size));
     }
 }

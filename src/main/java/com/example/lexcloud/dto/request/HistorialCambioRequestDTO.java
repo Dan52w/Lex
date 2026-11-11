@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 public record HistorialCambioRequestDTO(
-        @NotNull(message = "Debe haber una fecha registrada para el cambio")
+        // M19: la fecha la fija el servidor y se ignora la que venga aquí;
+        // el campo se conserva por compatibilidad con el front y con los
+        // llamadores existentes (VinculoCasoServiceImpl.auditar).
         LocalDateTime fecha,
         @NotBlank(message = "Debe haber una breve descripción del cambio o actualización")
         String descripcion,

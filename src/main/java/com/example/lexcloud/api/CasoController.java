@@ -47,6 +47,16 @@ public class CasoController {
         return ResponseEntity.noContent().build();
     }
 
+    // Reactivar caso (solo admin, guarda en el servicio).
+    // El desactivar es DELETE /{id}; no hay PATCH /desactivar que espejear,
+    // así que se usa PATCH /{id}/reactivar, verbo de cambio de estado que ya
+    // usa VinculoCasoController (PATCH /{id}/autorizar).
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<Void> reactivar(@PathVariable Integer id) {
+        casoService.reactivarCaso(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // Listar todos los casos vinculados y autorizados de una persona
     @GetMapping("/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona,
@@ -67,8 +77,10 @@ public class CasoController {
 
     // Listar por caso padre
     @GetMapping("/padre/{idCaso}")
-    public ResponseEntity<List<CasoResponseDTO>> listarPorCasoPadre(@PathVariable Integer idCaso){
-        return ResponseEntity.ok(casoService.listarPorCasoPadre(idCaso));
+    public ResponseEntity<List<CasoResponseDTO>> listarPorCasoPadre(@PathVariable Integer idCaso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size){
+        return ResponseEntity.ok(casoService.listarPorCasoPadre(idCaso, page, size));
     }
 
     // Buscar por título (parcial) y persona
@@ -109,7 +121,7 @@ public class CasoController {
             @RequestParam Integer idSubtipo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(casoService.listarPorSubtipoAndEstado(idPersona, idEstado, idSubtipo, page, size));
+        return ResponseEntity.ok(casoService.listarPorSubtipoAndEstado(idSubtipo, idEstado, idPersona, page, size));
     }
 
     // Buscar por Radicado Interno de forma segura

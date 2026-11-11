@@ -2,7 +2,7 @@ package com.example.lexcloud.api;
 
 import com.example.lexcloud.dto.request.AgendaRequestDTO;
 import com.example.lexcloud.dto.response.AgendaResponseDTO;
-import com.example.lexcloud.service.AgentaService;
+import com.example.lexcloud.service.AgendaService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -16,20 +16,20 @@ import java.util.List;
 @RequestMapping("/api/agendas")
 public class AgendaController {
 
-    private final AgentaService agentaService;
+    private final AgendaService agendaService;
 
-    public AgendaController(AgentaService agentaService) {
-        this.agentaService = agentaService;
+    public AgendaController(AgendaService agendaService) {
+        this.agendaService = agendaService;
     }
 
     @PostMapping
     public ResponseEntity<AgendaResponseDTO> crearAgenda(@Valid @RequestBody AgendaRequestDTO request) {
-        return new ResponseEntity<>(agentaService.guardar(request), HttpStatus.CREATED);
+        return new ResponseEntity<>(agendaService.guardar(request), HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AgendaResponseDTO> buscarPorId(@PathVariable Integer id) {
-        return agentaService.buscarPorId(id)
+        return agendaService.buscarPorId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -38,14 +38,14 @@ public class AgendaController {
     public ResponseEntity<List<AgendaResponseDTO>> listarPorAbogado(@PathVariable Integer idAbogado,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(agentaService.listarAbogado(idAbogado, page, size));
+        return ResponseEntity.ok(agendaService.listarAbogado(idAbogado, page, size));
     }
 
     @GetMapping("/caso/{idCaso}")
     public ResponseEntity<List<AgendaResponseDTO>> listarPorCaso(@PathVariable Integer idCaso,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(agentaService.listarCaso(idCaso, page, size));
+        return ResponseEntity.ok(agendaService.listarCaso(idCaso, page, size));
     }
 
     // Mejora: Uso de Query Params para fechas en lugar de Body
@@ -53,32 +53,36 @@ public class AgendaController {
     @GetMapping("/abogado/{idAbogado}/rango")
     public ResponseEntity<List<AgendaResponseDTO>> listarPorAbogadoFechaRange(@PathVariable Integer idAbogado,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        return ResponseEntity.ok(agentaService.listarAbogadoFechaRange(idAbogado, inicio, fin));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agendaService.listarAbogadoFechaRange(idAbogado, inicio, fin, page, size));
     }
 
     @GetMapping("/caso/{idCaso}/rango")
     public ResponseEntity<List<AgendaResponseDTO>> listarPorCasoFechaRange(@PathVariable Integer idCaso,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        return ResponseEntity.ok(agentaService.listarCasoFechaRange(idCaso, inicio, fin));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agendaService.listarCasoFechaRange(idCaso, inicio, fin, page, size));
     }
 
     @GetMapping("/abogado/citas/{idAbogado}")
     public ResponseEntity<List<AgendaResponseDTO>> listarPorProximasCitas(@PathVariable Integer idAbogado,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(agentaService.listarProximaCitas(idAbogado, page, size));
+        return ResponseEntity.ok(agendaService.listarProximaCitas(idAbogado, page, size));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<AgendaResponseDTO> actualizar(@PathVariable Integer id,@Valid @RequestBody AgendaRequestDTO request) {
-        return ResponseEntity.ok(agentaService.actualizar(id, request));
+        return ResponseEntity.ok(agendaService.actualizar(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(@PathVariable Integer id) {
-        agentaService.desactivarAgenda(id);
+        agendaService.desactivarAgenda(id);
         return ResponseEntity.noContent().build();
     }
 }

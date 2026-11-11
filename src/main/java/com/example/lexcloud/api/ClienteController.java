@@ -83,4 +83,15 @@ public class ClienteController {
         clienteService.desactivarCliente(id, idFirma);
         return ResponseEntity.noContent().build();
     }
+
+    // 8. Reactivar cliente (espejo del desactivar: mismo idFirma por query).
+    // El desactivar es DELETE /{id}; no hay PATCH /desactivar que espejear,
+    // así que se usa PATCH /{id}/reactivar (ver CasoController).
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<Void> reactivar(
+            @PathVariable Integer id,
+            @RequestParam Integer idFirma) {
+        clienteService.reactivarCliente(id, idFirma);
+        return ResponseEntity.noContent().build();
+    }
 }

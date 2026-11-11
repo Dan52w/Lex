@@ -25,8 +25,10 @@ public class EstratoEconomicoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EstratoEconomicoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(estratoEconomicoService.listarTodos());
+    public ResponseEntity<List<EstratoEconomicoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(estratoEconomicoService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class EstratoEconomicoController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<EstratoEconomicoResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(estratoEconomicoService.listarPorNombre(nombre));
+    public ResponseEntity<List<EstratoEconomicoResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(estratoEconomicoService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

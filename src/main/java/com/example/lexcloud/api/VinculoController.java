@@ -27,8 +27,10 @@ public class VinculoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<VinculoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(vinculoService.listarTodo());
+    public ResponseEntity<List<VinculoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(vinculoService.listarTodo(page, size));
     }
 
     @GetMapping("/{id}")

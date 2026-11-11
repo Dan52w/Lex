@@ -25,8 +25,10 @@ public class TipoEmpleadoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TipoEmpleadoResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(tipoEmpleadoService.listarTodos());
+    public ResponseEntity<List<TipoEmpleadoResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoEmpleadoService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class TipoEmpleadoController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<TipoEmpleadoResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(tipoEmpleadoService.listarPorNombre(nombre));
+    public ResponseEntity<List<TipoEmpleadoResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(tipoEmpleadoService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

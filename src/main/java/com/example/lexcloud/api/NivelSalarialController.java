@@ -25,8 +25,10 @@ public class NivelSalarialController {
     }
 
     @GetMapping
-    public ResponseEntity<List<NivelSalarialResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(nivelSalarialService.listarTodos());
+    public ResponseEntity<List<NivelSalarialResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(nivelSalarialService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class NivelSalarialController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<NivelSalarialResponseDTO>> listarPorRango(@RequestParam String nombre) {
-        return ResponseEntity.ok(nivelSalarialService.listarPorRango(nombre));
+    public ResponseEntity<List<NivelSalarialResponseDTO>> listarPorRango(@RequestParam String rango,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(nivelSalarialService.listarPorRango(rango, page, size));
     }
 
     @PutMapping("/{id}")

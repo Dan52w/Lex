@@ -25,8 +25,10 @@ public class GeneroController {
     }
 
     @GetMapping
-    public ResponseEntity<List<GeneroResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(generoService.listarTodos());
+    public ResponseEntity<List<GeneroResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(generoService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class GeneroController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<GeneroResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(generoService.listarPorNombre(nombre));
+    public ResponseEntity<List<GeneroResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(generoService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

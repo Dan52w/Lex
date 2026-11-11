@@ -25,8 +25,10 @@ public class GradoEscolaridadController {
     }
 
     @GetMapping
-    public ResponseEntity<List<GradoEscolaridadResponseDTO>> listarTodo() {
-        return ResponseEntity.ok(gradoEscolaridadService.listarTodos());
+    public ResponseEntity<List<GradoEscolaridadResponseDTO>> listarTodo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(gradoEscolaridadService.listarTodos(page, size));
     }
 
     @GetMapping("/{id}")
@@ -44,8 +46,10 @@ public class GradoEscolaridadController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<GradoEscolaridadResponseDTO>> listarPorNombre(@RequestParam String nombre) {
-        return ResponseEntity.ok(gradoEscolaridadService.listarPorNombre(nombre));
+    public ResponseEntity<List<GradoEscolaridadResponseDTO>> listarPorNombre(@RequestParam String nombre,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(gradoEscolaridadService.listarPorNombre(nombre, page, size));
     }
 
     @PutMapping("/{id}")

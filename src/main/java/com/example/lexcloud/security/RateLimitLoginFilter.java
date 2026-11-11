@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -73,7 +74,10 @@ public class RateLimitLoginFilter extends OncePerRequestFilter {
 
         if (retryAfterSegundos > 0) {
             log.warn("Login bloqueado por rate limiting (IP {})", ip);
-            response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            // HttpServletResponse NO tiene constante para el 429 (la API de
+            // Servlet nunca la definió): se usa HttpStatus de Spring, igual
+            // que en GlobalExceptionHandler.
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader("Retry-After", String.valueOf(retryAfterSegundos));
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");

@@ -24,11 +24,15 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // 1. Recurso no encontrado (404)
+    // Mensaje FIJO: el detalle interno (qué recurso, qué id) se loguea pero
+    // nunca se expone al cliente, para que "no existe" y "existe sin acceso"
+    // sean indistinguibles.
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(EntityNotFoundException ex) {
+        log.warn("Recurso no encontrado: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
+                "Recurso no encontrado",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -78,12 +82,13 @@ public class GlobalExceptionHandler {
 
     // 5. Violaciones de seguridad multi-tenant (403)
     // Ej: ClienteServiceImpl.actualizar/desactivarCliente, VinculoCasoServiceImpl.vincular
+    // Mensaje FIJO: el detalle interno se loguea pero nunca se expone al cliente.
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ErrorResponse> handleSecurityException(SecurityException ex) {
         log.warn("Acceso denegado: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
-                ex.getMessage(),
+                "No tiene permisos para realizar esta operación",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
@@ -94,7 +99,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
-                "No tiene permisos para realizar esta acción",
+                "No tiene permisos para realizar esta operación",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);

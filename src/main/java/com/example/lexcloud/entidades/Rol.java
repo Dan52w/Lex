@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -19,6 +20,15 @@ public class Rol {
     @Size(max = 100)
     @Column(name = "nombre", nullable = false, length = 100, unique = true)
     private String nombre;
+
+    /**
+     * Flag de administrador (C3, columna {@code roles.es_admin} creada por la
+     * migración V4 con backfill del rol ADMINISTRADOR). El privilegio de
+     * administrador lo decide este flag, no el nombre del rol.
+     */
+    @ColumnDefault("false")
+    @Column(name = "es_admin", nullable = false)
+    private Boolean esAdmin = false;
 
     // CAMBIO: Usamos mappedBy para referenciar al atributo 'rol' de la clase Persona
     @JsonIgnore
@@ -39,6 +49,14 @@ public class Rol {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+    public Boolean getEsAdmin() {
+        return esAdmin;
+    }
+
+    public void setEsAdmin(Boolean esAdmin) {
+        this.esAdmin = esAdmin;
     }
 
     public Set<Persona> getPersonas() {

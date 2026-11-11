@@ -2,7 +2,6 @@ package com.example.lexcloud.entidades;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "vinculo_casos")
@@ -12,10 +11,16 @@ public class Vinculo_Caso {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    /**
+     * Estado de gobierno del vínculo (M13). Fuente de verdad en lugar del
+     * antiguo flag {@code autorizado}; la columna {@code estado} la creó la
+     * migración V4 con backfill desde {@code autorizado} y CHECK
+     * PENDIENTE/AUTORIZADO/RECHAZADO. Un vínculo nace PENDIENTE.
+     */
     @NotNull
-    @ColumnDefault("false")
-    @Column(name = "autorizado", nullable = false)
-    private Boolean autorizado;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    private EstadoVinculo estado = EstadoVinculo.PENDIENTE;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -46,12 +51,22 @@ public class Vinculo_Caso {
         this.id = id;
     }
 
-    public Boolean getAutorizado() {
-        return autorizado;
+    public EstadoVinculo getEstado() {
+        return estado;
     }
 
-    public void setAutorizado(Boolean autorizado) {
-        this.autorizado = autorizado;
+    public void setEstado(EstadoVinculo estado) {
+        this.estado = estado;
+    }
+
+    /**
+     * Compatibilidad de lectura; la fuente de verdad es {@link #estado}.
+     * No usar para escribir: el estado solo cambia por las transiciones de
+     * gobierno del servicio (autorizar/desautorizar/rechazar).
+     */
+    @Transient
+    public Boolean getAutorizado() {
+        return estado == EstadoVinculo.AUTORIZADO;
     }
 
     public Persona getPersonaFirma() {

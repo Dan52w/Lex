@@ -63,11 +63,13 @@ public interface Cliente_Repository extends JpaRepository<Cliente, Integer> {
     // los listados a estas variantes.
     // =========================================================================
 
+    // H7: ORDER BY c.id para un orden determinista entre páginas.
     @Query("SELECT c FROM Cliente c " +
             "LEFT JOIN FETCH c.tipoIdentificacion " +
             "LEFT JOIN FETCH c.tipoCliente " +
             "WHERE c.firma.id = :firmaId " +
-            "AND c.activo = true")
+            "AND c.activo = true " +
+            "ORDER BY c.id")
     List<Cliente> findAllByFirmaId(@Param("firmaId") Integer firmaId, Pageable pageable);
 
     @Query("SELECT c FROM Cliente c " +
@@ -80,7 +82,8 @@ public interface Cliente_Repository extends JpaRepository<Cliente, Integer> {
             "  LOWER(CONCAT(c.nombres, ' ', c.primerApellido, ' ', COALESCE(c.segundoApellido, ''))) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
             "  LOWER(c.correo) LIKE LOWER(CONCAT('%', :filtro, '%')) ESCAPE '\\' OR " +
             "  c.telefonoMovil LIKE CONCAT('%', :filtro, '%') ESCAPE '\\'" +
-            ")")
+            ") " +
+            "ORDER BY c.id")
     List<Cliente> superBuscador(
             @Param("filtro") String filtro,
             @Param("firmaId") Integer firmaId,

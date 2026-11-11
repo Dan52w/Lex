@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -43,6 +44,13 @@ public class Abogado {
     @Size(max = 255)
     @Column(name = "tarjeta_profesional", nullable = false)
     private String tarjeta_Profesional;
+
+    // A5: activo propio del abogado (V4 crea la columna). Antes la baja se
+    // hacía solo sobre Persona.activo; ahora el registro de abogado tiene su
+    // propio flag (mismo patrón que Caso.activo y Agenda.activa).
+    @ColumnDefault("true")
+    @Column(name = "activo", nullable = false)
+    private Boolean activo = true;
 
     public Set<Equipo_Abogados> getEquiposAbogados() {
         return equiposAbogados;
@@ -98,6 +106,14 @@ public class Abogado {
 
     public void setTarjeta_Profesional(String tarjeta_Profesional) {
         this.tarjeta_Profesional = tarjeta_Profesional;
+    }
+
+    public Boolean getActivo() {
+        return activo;
+    }
+
+    public void setActivo(Boolean activo) {
+        this.activo = activo;
     }
 
     // Igualdad por identidad de BD: dos instancias representan la misma

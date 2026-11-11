@@ -11,11 +11,13 @@ import java.util.List;
 
 @Repository
 public interface HistorialCambio_Repository extends JpaRepository<Historial_Cambio, Integer> {
+    // H14: fecha es DATE (LocalDate), así que varios cambios del mismo día
+    // empataban; h.id DESC desempata (el id mayor es el cambio más reciente).
     @Query("SELECT h FROM Historial_Cambio h " +
             "JOIN FETCH h.caso c " +
             "JOIN FETCH h.persona p " +
             "WHERE h.caso.id = :casoId " +
-            "ORDER BY h.fecha DESC")
+            "ORDER BY h.fecha DESC, h.id DESC")
     List<Historial_Cambio> findByCasoId(@Param("casoId") Integer casoId);
 
     // Variante paginada: el historial de un caso crece con cada cambio.
@@ -23,6 +25,6 @@ public interface HistorialCambio_Repository extends JpaRepository<Historial_Camb
             "JOIN FETCH h.caso c " +
             "JOIN FETCH h.persona p " +
             "WHERE h.caso.id = :casoId " +
-            "ORDER BY h.fecha DESC")
+            "ORDER BY h.fecha DESC, h.id DESC")
     List<Historial_Cambio> findByCasoId(@Param("casoId") Integer casoId, Pageable pageable);
 }

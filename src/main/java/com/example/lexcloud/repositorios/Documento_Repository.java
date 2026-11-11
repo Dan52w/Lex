@@ -18,9 +18,11 @@ public interface Documento_Repository extends JpaRepository<Documento, Integer> 
     List<Documento> findByCasoId(@Param("casoId") Integer casoId);
 
     // Variante paginada: un caso puede acumular muchos documentos.
+    // H7: ORDER BY d.id para un orden determinista entre páginas.
     @Query("SELECT d FROM Documento d " +
             "JOIN FETCH d.caso c " +
             "JOIN FETCH d.tipo_Documento td " +
-            "WHERE d.caso.id = :casoId")
+            "WHERE d.caso.id = :casoId " +
+            "ORDER BY d.id")
     List<Documento> findByCasoId(@Param("casoId") Integer casoId, Pageable pageable);
 }

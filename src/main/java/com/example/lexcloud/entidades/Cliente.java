@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Email;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +32,11 @@ public class Cliente {
     @Column(name = "fecha_vinculacion")
     private LocalDate fechaVinculacion;
 
-    @Column(name = "activo")
-    private Boolean activo;
+    // H16: activo ya no es anulable (mismo patrón que Caso.activo y
+    // Agenda.activa: @ColumnDefault + nullable = false, inicializado a true).
+    @ColumnDefault("true")
+    @Column(name = "activo", nullable = false)
+    private Boolean activo = true;
 
     // =========================================================================
     // 1. IDENTIFICACIÓN Y DATOS BÁSICOS

@@ -11,9 +11,9 @@ import java.util.Optional;
 @Repository
 public interface Login_Repository extends JpaRepository<Login, Integer> {
 
-    // 1. Buscar por correo (Fundamental para el proceso de autenticación)
-    // Spring Security usará esto para encontrar al usuario por su email
-    Optional<Login> findByCorreo(String correo);
+    // H5: se borró findByCorreo (sin chequeo de activo, muerto — ningún
+    // llamador en src/main/java). La autenticación usa la variante segura
+    // findByCorreoAndPersonaActiva (UserDetailsServiceImpl).
 
     // 2. Login con Validación de Seguridad (Soft Delete)
     // Solo permite loguearse si el correo coincide Y la persona está 'activa'

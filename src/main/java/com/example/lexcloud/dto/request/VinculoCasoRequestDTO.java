@@ -11,6 +11,5 @@ public record VinculoCasoRequestDTO(
         @NotNull(message = "Debe haber un caso, para poder generar el vinculo")
         Integer idCaso,
         @NotNull(message = "Debe indicarse el vinculo con el caso")
-        Integer idVinculo,
-        boolean autorizado) {
+        Integer idVinculo) {
 }

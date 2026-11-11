@@ -3,6 +3,8 @@ package com.example.lexcloud.api;
 import com.example.lexcloud.dto.request.LoginRequestDTO;
 import com.example.lexcloud.dto.request.RegisterRequestDTO;
 import com.example.lexcloud.dto.response.AuthResponseDTO;
+import com.example.lexcloud.dto.response.MeResponseDTO;
+import com.example.lexcloud.repositorios.Abogado_Repository;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
@@ -12,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,13 +24,16 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final AuthService authService;
+    private final Abogado_Repository abogadoRepository;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
-                          AuthService authService) {
+                          AuthService authService,
+                          Abogado_Repository abogadoRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.authService = authService;
+        this.abogadoRepository = abogadoRepository;
     }
 
     @PostMapping("/login")
@@ -80,5 +86,35 @@ public class AuthController {
     @GetMapping("/existe-correo/{correo}")
     public ResponseEntity<Boolean> existeCorreo(@PathVariable String correo) {
         return ResponseEntity.ok(authService.existeCorreo(correo.trim()));
+    }
+
+    @GetMapping("/me")
+    @Transactional(readOnly = true)
+    public ResponseEntity<MeResponseDTO> me(Authentication authentication) {
+        // El endpoint exige autenticación (ver WebSecurityConfig), así que
+        // el principal es siempre el UserDetailsImpl del token Bearer.
+        // El front lo usa como guarda de ruta del dashboard y para mostrar
+        // nombre/rol (ver src/lib/session.ts): sin /me válido el dashboard
+        // no se renderiza.
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        // idFirma: la firma del abogado vinculado a esta persona, solo si
+        // el vínculo está activo (A5). Un admin sin registro de abogado
+        // (p. ej. el primer usuario) no tiene firma: null, y el front lo
+        // tolera (normalizeMe lo convierte en null).
+        Integer idFirma = abogadoRepository.findByPersonaId(userDetails.getId())
+                .filter(a -> Boolean.TRUE.equals(a.getActivo()))
+                .map(a -> a.getFirma() != null ? a.getFirma().getId() : null)
+                .orElse(null);
+
+        return ResponseEntity.ok(new MeResponseDTO(
+                userDetails.getId(),
+                userDetails.getNombreCompleto(),
+                userDetails.getUsername(),
+                userDetails.getCc(),
+                userDetails.getNombreRol(),
+                true,
+                idFirma
+        ));
     }
 }

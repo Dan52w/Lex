@@ -5,86 +5,43 @@ import com.example.lexcloud.dto.request.EstadoCivilRequestDTO;
 import com.example.lexcloud.dto.response.EstadoCivilResponseDTO;
 import com.example.lexcloud.entidades.Estado_Civil;
 import com.example.lexcloud.repositorios.EstadoCivil_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.EstadoCivilService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class EstadoCivilServiceImpl implements EstadoCivilService {
-    private final EstadoCivil_Repository estadoCivilRepository;
-    private final EstadoCivilMapper estadoCivilMapper;
+public class EstadoCivilServiceImpl extends AbstractCatalogoService<Estado_Civil, EstadoCivilRequestDTO, EstadoCivilResponseDTO> implements EstadoCivilService {
 
-    public EstadoCivilServiceImpl(EstadoCivil_Repository estadoCivilRepository,
-                                  EstadoCivilMapper estadoCivilMapper) {
-        this.estadoCivilRepository = estadoCivilRepository;
-        this.estadoCivilMapper = estadoCivilMapper;
-    }
-
-    @Override
-    public EstadoCivilResponseDTO guardar(EstadoCivilRequestDTO request) {
-        if (estadoCivilRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Estado_Civil  estadoCivil = estadoCivilMapper.toEntity(request);
-        try {
-            return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<EstadoCivilResponseDTO> listarPorNombre(String nombre) {
-        return estadoCivilMapper.toResponseList(estadoCivilRepository.findAllByNombre(nombre));
+    public EstadoCivilServiceImpl(EstadoCivil_Repository repositorio, EstadoCivilMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "SOLTERO(A)",
+            "CASADO(A)",
+            "UNIÓN LIBRE",
+            "DIVORCIADO(A)",
+            "VIUDO(A)"), "Estado Civil",
+                EstadoCivilRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Estado_Civil::getNombre, Estado_Civil::setNombre, Estado_Civil::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<EstadoCivilResponseDTO> listarTodos() {
-        return estadoCivilMapper.toResponseList(estadoCivilRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<EstadoCivilResponseDTO> buscarPorNombre(String nombre) {
-        return estadoCivilRepository.findByNombre(nombre)
-                .map(estadoCivilMapper::toResponse);
-    }
-
-    @Override
-    public Optional<EstadoCivilResponseDTO> buscarPorId(Integer id) {
-        return estadoCivilRepository.findById(id)
-                .map(estadoCivilMapper::toResponse);
-    }
-
-    @Override
-    public EstadoCivilResponseDTO actualizar(Integer id, EstadoCivilRequestDTO request) {
-        return estadoCivilRepository.findById(id).map(estadoCivil -> {
-            estadoCivilRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            estadoCivil.setNombre(request.nombre());
-
-            try {
-                return estadoCivilMapper.toResponse(estadoCivilRepository.save(estadoCivil));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Estado Civil con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el estado civil con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!estadoCivilRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Estado Civil no encontrado");
-        }
-        estadoCivilRepository.deleteById(id);
+    public List<EstadoCivilResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

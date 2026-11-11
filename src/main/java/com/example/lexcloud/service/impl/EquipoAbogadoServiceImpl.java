@@ -11,16 +11,21 @@ import com.example.lexcloud.repositorios.TipoRelacionEquipo_Repository;
 import com.example.lexcloud.security.service.ContextoSeguridad;
 import com.example.lexcloud.service.EquipoAbogadoService;
 import com.example.lexcloud.util.Paginacion;
+import com.example.lexcloud.util.Validaciones;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
+
+    /** Zona horaria para las fechas que fija el servidor. */
+    private static final ZoneId ZONA_HORARIA = ZoneId.of("America/Bogota");
 
     private final EquipoAbogado_Repository equipoAbogadoRepository;
     private final Abogado_Repository abogadoRepository;
@@ -46,28 +51,59 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Override
     @Transactional
     public EquipoAbogadoResponseDTO crearAsignacion(EquipoAbogadoRequestDTO requestDTO) {
-        // 1. Validar regla de negocio: No duplicar asignaciones activas idénticas
-        boolean existeActiva = equipoAbogadoRepository.existsByAbogado_IdAndPersona_IdAndActivoTrue(
-                requestDTO.idAbogado(), requestDTO.idPersona()
-        );
-        if (existeActiva) {
-            throw new IllegalStateException("Ya existe una relación activa vigente entre este abogado y el miembro del personal.");
-        }
+        // M7: guardas de null antes de cualquier acceso a repositorio.
+        Validaciones.requerirNoNulo(requestDTO, "request");
+        Integer idAbogado = Validaciones.requerirId(requestDTO.idAbogado(), "idAbogado");
+        Integer idPersona = Validaciones.requerirId(requestDTO.idPersona(), "idPersona");
+        Integer idTipoRelacion = Validaciones.requerirId(requestDTO.idTipoRelacion(), "idTipoRelacion");
 
-        // 2. Buscar las entidades relacionales correspondientes en la base de datos
-        var abogado = abogadoRepository.findById(requestDTO.idAbogado())
-                .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado con el ID: " + requestDTO.idAbogado()));
+        // M20: primero se cargan las entidades (404 genérico, sin IDs — B2).
+        // El chequeo de duplicado va DESPUÉS de cargarlas, para no oracular
+        // la existencia del par abogado/persona antes de verificar nada.
+        var abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
 
-        var persona = personaRepository.findById(requestDTO.idPersona())
-                .orElseThrow(() -> new EntityNotFoundException("Miembro del personal (Persona) no encontrado con el ID: " + requestDTO.idPersona()));
+        var persona = personaRepository.findById(idPersona)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
 
-        var tipoRelacion = tipoRelacionRepository.findById(requestDTO.idTipoRelacion())
-                .orElseThrow(() -> new EntityNotFoundException("Tipo de relación no encontrado con el ID: " + requestDTO.idTipoRelacion()));
+        var tipoRelacion = tipoRelacionRepository.findById(idTipoRelacion)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
 
         // 2b. La asignación se crea en la firma del abogado: quien crea debe
         // pertenecer a esa firma. (La persona asignada no se puede verificar por
         // firma: el modelo no guarda la firma en Persona, solo en Abogado.)
         contextoSeguridad.verificarAccesoAAbogado(abogado);
+
+        // M20: estado y coherencia de la asignación.
+        if (!Boolean.TRUE.equals(persona.getActivo())) {
+            throw new IllegalArgumentException("La persona no está activa.");
+        }
+        if (contextoSeguridad.esPersonaSistema(persona)) {
+            throw new IllegalArgumentException("La persona del sistema no puede formar parte de un equipo.");
+        }
+        if (!Boolean.TRUE.equals(abogado.getActivo())
+                || abogado.getPersona() == null
+                || !Boolean.TRUE.equals(abogado.getPersona().getActivo())) {
+            throw new IllegalArgumentException("El abogado no está activo.");
+        }
+        // Auto-asignación: un abogado no puede asignarse a sí mismo como
+        // miembro de su propio equipo.
+        if (abogado.getPersona().getId().equals(persona.getId())) {
+            throw new IllegalArgumentException("Un abogado no puede asignarse a sí mismo como miembro de su propio equipo.");
+        }
+        if (requestDTO.fechaAsignacion() != null
+                && requestDTO.fechaAsignacion().isAfter(LocalDate.now(ZONA_HORARIA))) {
+            throw new IllegalArgumentException("La fecha de asignación no puede ser futura.");
+        }
+
+        // M20: la regla de no duplicar asignaciones activas idénticas se
+        // comprueba ahora, con las entidades ya cargadas y validadas.
+        boolean existeActiva = equipoAbogadoRepository.existsByAbogado_IdAndPersona_IdAndActivoTrue(
+                idAbogado, idPersona
+        );
+        if (existeActiva) {
+            throw new IllegalStateException("Ya existe una relación activa vigente entre este abogado y el miembro del personal.");
+        }
 
         // 3. Mapear de Request DTO a Entidad usando MapStruct
         Equipo_Abogados nuevaAsignacion = equipoAbogadoMapper.toEntity(requestDTO);
@@ -79,7 +115,7 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
 
         // 5. Control de valores predefinidos si los parámetros opcionales del DTO vienen nulos
         if (nuevaAsignacion.getFechaAsignacion() == null) {
-            nuevaAsignacion.setFechaAsignacion(LocalDate.now());
+            nuevaAsignacion.setFechaAsignacion(LocalDate.now(ZONA_HORARIA));
         }
         if (nuevaAsignacion.getActivo() == null) {
             nuevaAsignacion.setActivo(true);
@@ -92,8 +128,9 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Override
     @Transactional(readOnly = true)
     public EquipoAbogadoResponseDTO obtenerPorId(Integer id) {
-        Equipo_Abogados ea = equipoAbogadoRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Asignación de equipo no encontrada con el ID: " + id));
+        Integer idAsignacion = Validaciones.requerirId(id, "id");
+        Equipo_Abogados ea = equipoAbogadoRepository.findById(idAsignacion)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
         contextoSeguridad.verificarAccesoAAbogado(ea.getAbogado());
         return equipoAbogadoMapper.toResponse(ea);
     }
@@ -107,69 +144,110 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarTodosActivos(int page, int size) {
-        // SVC-2: la variante global (todas las firmas) es solo para administradores;
-        // el resto ve únicamente las asignaciones activas de su propia firma.
-        if (contextoSeguridad.esAdmin()) {
-            return equipoAbogadoMapper.toResponseList(
-                    equipoAbogadoRepository.findAllActiveWithRelationships(Paginacion.crear(page, size)));
-        }
+        // C8: ya no hay rama global para administradores: TODOS ven solo las
+        // asignaciones activas de su propia firma (la variante con firma del
+        // repositorio, H3). Un admin de la firma A ya no ve datos de la B.
         Integer firmaId = contextoSeguridad.idFirmaAutenticadaRequerida();
         return equipoAbogadoMapper.toResponseList(
-                equipoAbogadoRepository.findActiveWithRelationshipsByFirma(firmaId, Paginacion.crear(page, size)));
+                equipoAbogadoRepository.findAllActiveWithRelationshipsByFirma(firmaId, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarPorAbogado(Integer idAbogado) {
-        var abogado = abogadoRepository.findById(idAbogado)
-                .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado con el ID: " + idAbogado));
+        return listarPorAbogado(idAbogado, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EquipoAbogadoResponseDTO> listarPorAbogado(Integer idAbogado, int page, int size) {
+        Integer id = Validaciones.requerirId(idAbogado, "idAbogado");
+        var abogado = abogadoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
         contextoSeguridad.verificarAccesoAAbogado(abogado);
-        return equipoAbogadoMapper.toResponseList(equipoAbogadoRepository.findByAbogado_Id(idAbogado));
+        return equipoAbogadoMapper.toResponseList(
+                equipoAbogadoRepository.findByAbogado_Id(id, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarActivosPorAbogado(Integer idAbogado) {
-        var abogado = abogadoRepository.findById(idAbogado)
-                .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado con el ID: " + idAbogado));
+        return listarActivosPorAbogado(idAbogado, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EquipoAbogadoResponseDTO> listarActivosPorAbogado(Integer idAbogado, int page, int size) {
+        Integer id = Validaciones.requerirId(idAbogado, "idAbogado");
+        var abogado = abogadoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
         contextoSeguridad.verificarAccesoAAbogado(abogado);
-        return equipoAbogadoMapper.toResponseList(equipoAbogadoRepository.findByAbogado_IdAndActivoTrue(idAbogado));
+        return equipoAbogadoMapper.toResponseList(
+                equipoAbogadoRepository.findByAbogado_IdAndActivoTrue(id, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarPorPersona(Integer idPersona) {
-        // Sin variante paginada ni con alcance por firma en el repositorio para
-        // esta consulta: se filtra en memoria a la firma del usuario (salvo admin).
-        List<Equipo_Abogados> asignaciones = equipoAbogadoRepository.findByPersona_Id(idPersona);
-        return equipoAbogadoMapper.toResponseList(filtrarPorFirma(asignaciones));
+        return listarPorPersona(idPersona, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EquipoAbogadoResponseDTO> listarPorPersona(Integer idPersona, int page, int size) {
+        Integer id = Validaciones.requerirId(idPersona, "idPersona");
+        // M21: solo la propia persona o un administrador pueden consultar
+        // las asignaciones de una persona.
+        contextoSeguridad.verificarMismaPersona(id);
+        // C8/H3: alcance por firma en JPQL (variante con firma y paginada),
+        // no filtrado en memoria y nunca la variante global.
+        Integer firmaId = contextoSeguridad.idFirmaAutenticadaRequerida();
+        return equipoAbogadoMapper.toResponseList(
+                equipoAbogadoRepository.findByPersonaIdAndFirma(id, firmaId, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarPorTipoRelacion(Integer idTipoRelacion) {
-        List<Equipo_Abogados> asignaciones = equipoAbogadoRepository.findByTipoRelacion_Id(idTipoRelacion);
-        return equipoAbogadoMapper.toResponseList(filtrarPorFirma(asignaciones));
+        return listarPorTipoRelacion(idTipoRelacion, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EquipoAbogadoResponseDTO> listarPorTipoRelacion(Integer idTipoRelacion, int page, int size) {
+        Integer id = Validaciones.requerirId(idTipoRelacion, "idTipoRelacion");
+        // C8/H3: alcance por firma en JPQL, nunca la variante global con
+        // filtrado en memoria.
+        Integer firmaId = contextoSeguridad.idFirmaAutenticadaRequerida();
+        return equipoAbogadoMapper.toResponseList(
+                equipoAbogadoRepository.findByTipoRelacionIdAndFirma(id, firmaId, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarActivosPorTipoRelacion(Integer idTipoRelacion) {
-        // SVC-2: solo administradores ven las activas de todas las firmas.
-        if (contextoSeguridad.esAdmin()) {
-            return equipoAbogadoMapper.toResponseList(
-                    equipoAbogadoRepository.findActiveByRelationshipType(idTipoRelacion));
-        }
+        return listarActivosPorTipoRelacion(idTipoRelacion, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EquipoAbogadoResponseDTO> listarActivosPorTipoRelacion(Integer idTipoRelacion, int page, int size) {
+        Integer id = Validaciones.requerirId(idTipoRelacion, "idTipoRelacion");
+        // C8/H3: la antigua rama admin llamaba a findActiveByRelationshipType,
+        // variante global que el Lote 2 borró del repositorio (el código ya no
+        // compilaba). Ahora TODOS usan la variante con firma y paginada.
         Integer firmaId = contextoSeguridad.idFirmaAutenticadaRequerida();
         return equipoAbogadoMapper.toResponseList(
-                equipoAbogadoRepository.findActiveByRelationshipTypeAndFirma(idTipoRelacion, firmaId));
+                equipoAbogadoRepository.findActiveByRelationshipTypeAndFirma(id, firmaId, Paginacion.crear(page, size)));
     }
 
     @Override
     @Transactional
     public void desactivarAsignacion(Integer idAbogado, Integer idPersona) {
-        Equipo_Abogados asignacion = equipoAbogadoRepository.findByAbogado_IdAndPersona_IdAndActivoTrue(idAbogado, idPersona)
-                .orElseThrow(() -> new EntityNotFoundException("No se encontró una asignación activa para los IDs provistos."));
+        Integer idAb = Validaciones.requerirId(idAbogado, "idAbogado");
+        Integer idPe = Validaciones.requerirId(idPersona, "idPersona");
+        Equipo_Abogados asignacion = equipoAbogadoRepository.findByAbogado_IdAndPersona_IdAndActivoTrue(idAb, idPe)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró una asignación activa."));
 
         contextoSeguridad.verificarAccesoAAbogado(asignacion.getAbogado());
         asignacion.setActivo(false); // Desactivación lógica segura
@@ -179,26 +257,10 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Override
     @Transactional
     public void eliminarAsignacion(Integer id) {
-        Equipo_Abogados asignacion = equipoAbogadoRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("No se puede eliminar. No existe registro con el ID: " + id));
+        Integer idAsignacion = Validaciones.requerirId(id, "id");
+        Equipo_Abogados asignacion = equipoAbogadoRepository.findById(idAsignacion)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
         contextoSeguridad.verificarAccesoAAbogado(asignacion.getAbogado());
         equipoAbogadoRepository.delete(asignacion);
-    }
-
-    /**
-     * Filtra asignaciones a la firma del usuario autenticado (sin filtro para
-     * administradores). Si la firma no se puede resolver, se deniega: devolver
-     * la lista sin filtrar expondría asignaciones de todas las firmas.
-     */
-    private List<Equipo_Abogados> filtrarPorFirma(List<Equipo_Abogados> asignaciones) {
-        if (contextoSeguridad.esAdmin()) {
-            return asignaciones;
-        }
-        Integer firmaId = contextoSeguridad.idFirmaAutenticadaRequerida();
-        return asignaciones.stream()
-                .filter(ea -> ea.getAbogado() != null
-                        && ea.getAbogado().getFirma() != null
-                        && firmaId.equals(ea.getAbogado().getFirma().getId()))
-                .collect(Collectors.toList());
     }
 }

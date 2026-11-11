@@ -5,86 +5,43 @@ import com.example.lexcloud.dto.request.GradoEscolaridadRequestDTO;
 import com.example.lexcloud.dto.response.GradoEscolaridadResponseDTO;
 import com.example.lexcloud.entidades.Grado_Escolaridad;
 import com.example.lexcloud.repositorios.GradoEscolaridad_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.GradoEscolaridadService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class GradoEscolaridadServiceImpl implements GradoEscolaridadService {
-    private final GradoEscolaridad_Repository gradoEscolaridadRepository;
-    private final GradoEscolaridadMapper gradoEscolaridadMapper;
+public class GradoEscolaridadServiceImpl extends AbstractCatalogoService<Grado_Escolaridad, GradoEscolaridadRequestDTO, GradoEscolaridadResponseDTO> implements GradoEscolaridadService {
 
-    public GradoEscolaridadServiceImpl(GradoEscolaridad_Repository gradoEscolaridadRepository,
-                                       GradoEscolaridadMapper gradoEscolaridadMapper) {
-        this.gradoEscolaridadRepository = gradoEscolaridadRepository;
-        this.gradoEscolaridadMapper = gradoEscolaridadMapper;
-    }
-
-    @Override
-    public GradoEscolaridadResponseDTO guardar(GradoEscolaridadRequestDTO request) {
-        if (gradoEscolaridadRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Grado_Escolaridad gradoEscolaridad = gradoEscolaridadMapper.toEntity(request);
-        try {
-            return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<GradoEscolaridadResponseDTO> listarPorNombre(String nombre) {
-        return gradoEscolaridadMapper.toResponseList(gradoEscolaridadRepository.findAllByNombre(nombre));
+    public GradoEscolaridadServiceImpl(GradoEscolaridad_Repository repositorio, GradoEscolaridadMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "PRIMARIA",
+            "SECUNDARIA / BACHILLERATO",
+            "TÉCNICO / TECNÓLOGO",
+            "UNIVERSITARIO",
+            "POSTGRADO"), "Grado Escolaridad",
+                GradoEscolaridadRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Grado_Escolaridad::getNombre, Grado_Escolaridad::setNombre, Grado_Escolaridad::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<GradoEscolaridadResponseDTO> listarTodos() {
-        return gradoEscolaridadMapper.toResponseList(gradoEscolaridadRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<GradoEscolaridadResponseDTO> buscarPorNombre(String nombre) {
-        return gradoEscolaridadRepository.findByNombre(nombre)
-                .map(gradoEscolaridadMapper::toResponse);
-    }
-
-    @Override
-    public Optional<GradoEscolaridadResponseDTO> buscarPorId(Integer id) {
-        return gradoEscolaridadRepository.findById(id)
-                .map(gradoEscolaridadMapper::toResponse);
-    }
-
-    @Override
-    public GradoEscolaridadResponseDTO actualizar(Integer id, GradoEscolaridadRequestDTO request) {
-        return gradoEscolaridadRepository.findById(id).map(gradoEscolaridad -> {
-            gradoEscolaridadRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            gradoEscolaridad.setNombre(request.nombre());
-
-            try {
-                return gradoEscolaridadMapper.toResponse(gradoEscolaridadRepository.save(gradoEscolaridad));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Grado de Escolaridad con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el grado de escolaridad con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!gradoEscolaridadRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Grado de Escolaridad no encontrado");
-        }
-        gradoEscolaridadRepository.deleteById(id);
+    public List<GradoEscolaridadResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

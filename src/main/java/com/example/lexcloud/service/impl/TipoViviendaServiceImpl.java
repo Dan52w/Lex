@@ -5,86 +5,42 @@ import com.example.lexcloud.dto.request.TipoViviendaRequestDTO;
 import com.example.lexcloud.dto.response.TipoViviendaResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Vivienda;
 import com.example.lexcloud.repositorios.TipoVivienda_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.TipoViviendaService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class TipoViviendaServiceImpl implements TipoViviendaService {
-    private final TipoVivienda_Repository tipoViviendaRepository;
-    private final TipoViviendaMapper tipoViviendaMapper;
+public class TipoViviendaServiceImpl extends AbstractCatalogoService<Tipo_Vivienda, TipoViviendaRequestDTO, TipoViviendaResponseDTO> implements TipoViviendaService {
 
-    public TipoViviendaServiceImpl(TipoVivienda_Repository tipoViviendaRepository,
-                                   TipoViviendaMapper tipoViviendaMapper) {
-        this.tipoViviendaRepository = tipoViviendaRepository;
-        this.tipoViviendaMapper = tipoViviendaMapper;
-    }
-
-    @Override
-    public TipoViviendaResponseDTO guardar(TipoViviendaRequestDTO request) {
-        if (tipoViviendaRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Tipo_Vivienda tipoVivienda = tipoViviendaMapper.toEntity(request);
-        try {
-            return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<TipoViviendaResponseDTO> listarPorNombre(String nombre) {
-        return tipoViviendaMapper.toResponseList(tipoViviendaRepository.findAllByNombre(nombre));
+    public TipoViviendaServiceImpl(TipoVivienda_Repository repositorio, TipoViviendaMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "PROPIA",
+            "ARRENDADA",
+            "FAMILIAR",
+            "COMPARTIDA (ROOMIE)"), "Tipo Vivienda",
+                TipoViviendaRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Tipo_Vivienda::getNombre, Tipo_Vivienda::setNombre, Tipo_Vivienda::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<TipoViviendaResponseDTO> listarTodos() {
-        return tipoViviendaMapper.toResponseList(tipoViviendaRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<TipoViviendaResponseDTO> buscarPorNombre(String nombre) {
-        return tipoViviendaRepository.findByNombre(nombre)
-                .map(tipoViviendaMapper::toResponse);
-    }
-
-    @Override
-    public Optional<TipoViviendaResponseDTO> buscarPorId(Integer id) {
-        return tipoViviendaRepository.findById(id)
-                .map(tipoViviendaMapper::toResponse);
-    }
-
-    @Override
-    public TipoViviendaResponseDTO actualizar(Integer id, TipoViviendaRequestDTO request) {
-        return tipoViviendaRepository.findById(id).map(tipoVivienda -> {
-            tipoViviendaRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            tipoVivienda.setNombre(request.nombre());
-
-            try {
-                return tipoViviendaMapper.toResponse(tipoViviendaRepository.save(tipoVivienda));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Tipo Vivienda con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo vivienda con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!tipoViviendaRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Tipo vivienda no encontrado");
-        }
-        tipoViviendaRepository.deleteById(id);
+    public List<TipoViviendaResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

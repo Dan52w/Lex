@@ -5,86 +5,42 @@ import com.example.lexcloud.dto.request.TipoIdentificacionRequestDTO;
 import com.example.lexcloud.dto.response.TipoIdenficacionResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Identificacion;
 import com.example.lexcloud.repositorios.TipoIdentificacion_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.TipoIdentificacionService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class TipoIdentificacionServiceImpl implements TipoIdentificacionService {
-    private final TipoIdentificacion_Repository tipoIdentificacionRepository;
-    private final TipoIdentificacionMapper tipoIdentificacionMapper;
+public class TipoIdentificacionServiceImpl extends AbstractCatalogoService<Tipo_Identificacion, TipoIdentificacionRequestDTO, TipoIdenficacionResponseDTO> implements TipoIdentificacionService {
 
-    public TipoIdentificacionServiceImpl(TipoIdentificacion_Repository tipoIdentificacionRepository,
-                                         TipoIdentificacionMapper tipoIdentificacionMapper) {
-        this.tipoIdentificacionRepository = tipoIdentificacionRepository;
-        this.tipoIdentificacionMapper = tipoIdentificacionMapper;
-    }
-
-    @Override
-    public TipoIdenficacionResponseDTO guardar(TipoIdentificacionRequestDTO request) {
-        if (tipoIdentificacionRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Tipo_Identificacion tipoIdentificacion = tipoIdentificacionMapper.toEntity(request);
-        try {
-            return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentificacion));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<TipoIdenficacionResponseDTO> listarPorNombre(String nombre) {
-        return tipoIdentificacionMapper.toResponseList(tipoIdentificacionRepository.findAllByNombre(nombre));
+    public TipoIdentificacionServiceImpl(TipoIdentificacion_Repository repositorio, TipoIdentificacionMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "CÉDULA DE CIUDADANÍA",
+            "CÉDULA DE EXTRANJERÍA",
+            "PASAPORTE",
+            "NIT"), "Tipo Identificacion",
+                TipoIdentificacionRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Tipo_Identificacion::getNombre, Tipo_Identificacion::setNombre, Tipo_Identificacion::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<TipoIdenficacionResponseDTO> listarTodos() {
-        return tipoIdentificacionMapper.toResponseList(tipoIdentificacionRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<TipoIdenficacionResponseDTO> buscarPorNombre(String nombre) {
-        return tipoIdentificacionRepository.findByNombre(nombre)
-                .map(tipoIdentificacionMapper::toResponse);
-    }
-
-    @Override
-    public Optional<TipoIdenficacionResponseDTO> buscarPorId(Integer id) {
-        return tipoIdentificacionRepository.findById(id)
-                .map(tipoIdentificacionMapper::toResponse);
-    }
-
-    @Override
-    public TipoIdenficacionResponseDTO actualizar(Integer id, TipoIdentificacionRequestDTO request) {
-        return tipoIdentificacionRepository.findById(id).map(tipoIdentifiacion -> {
-            tipoIdentificacionRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            tipoIdentifiacion.setNombre(request.nombre());
-
-            try {
-                return tipoIdentificacionMapper.toResponse(tipoIdentificacionRepository.save(tipoIdentifiacion));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Tipo Identificacion con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo identificacion con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!tipoIdentificacionRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Tipo identificacion no encontrado");
-        }
-        tipoIdentificacionRepository.deleteById(id);
+    public List<TipoIdenficacionResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

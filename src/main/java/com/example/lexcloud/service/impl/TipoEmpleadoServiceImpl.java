@@ -5,86 +5,43 @@ import com.example.lexcloud.dto.request.TipoEmpleadoRequestDTO;
 import com.example.lexcloud.dto.response.TipoEmpleadoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Empleado;
 import com.example.lexcloud.repositorios.TipoEmpleado_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.TipoEmpleadoService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class TipoEmpleadoServiceImpl implements TipoEmpleadoService {
-    private final TipoEmpleado_Repository tipoEmpleadoRepository;
-    private final TipoEmpleadoMapper tipoEmpleadoMapper;
+public class TipoEmpleadoServiceImpl extends AbstractCatalogoService<Tipo_Empleado, TipoEmpleadoRequestDTO, TipoEmpleadoResponseDTO> implements TipoEmpleadoService {
 
-    public TipoEmpleadoServiceImpl(TipoEmpleado_Repository tipoEmpleadoRepository,
-                                   TipoEmpleadoMapper tipoEmpleadoMapper) {
-        this.tipoEmpleadoRepository = tipoEmpleadoRepository;
-        this.tipoEmpleadoMapper = tipoEmpleadoMapper;
-    }
-
-    @Override
-    public TipoEmpleadoResponseDTO guardar(TipoEmpleadoRequestDTO request) {
-        if (tipoEmpleadoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Tipo_Empleado tipoEmpleado = tipoEmpleadoMapper.toEntity(request);
-        try {
-            return tipoEmpleadoMapper.toResponse(tipoEmpleadoRepository.save(tipoEmpleado));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<TipoEmpleadoResponseDTO> listarPorNombre(String nombre) {
-        return tipoEmpleadoMapper.toResponseList(tipoEmpleadoRepository.findAllByNombre(nombre));
+    public TipoEmpleadoServiceImpl(TipoEmpleado_Repository repositorio, TipoEmpleadoMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "INDEPENDIENTE",
+            "EMPLEADO DEPENDIENTE",
+            "DESEMPLEADO",
+            "ESTUDIANTE",
+            "PENSIONADO"), "Tipo Empleado",
+                TipoEmpleadoRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Tipo_Empleado::getNombre, Tipo_Empleado::setNombre, Tipo_Empleado::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<TipoEmpleadoResponseDTO> listarTodos() {
-        return tipoEmpleadoMapper.toResponseList(tipoEmpleadoRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<TipoEmpleadoResponseDTO> buscarPorNombre(String nombre) {
-        return tipoEmpleadoRepository.findByNombre(nombre)
-                .map(tipoEmpleadoMapper::toResponse);
-    }
-
-    @Override
-    public Optional<TipoEmpleadoResponseDTO> buscarPorId(Integer id) {
-        return tipoEmpleadoRepository.findById(id)
-                .map(tipoEmpleadoMapper::toResponse);
-    }
-
-    @Override
-    public TipoEmpleadoResponseDTO actualizar(Integer id, TipoEmpleadoRequestDTO request) {
-        return tipoEmpleadoRepository.findById(id).map(tipoEmpleado -> {
-            tipoEmpleadoRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            tipoEmpleado.setNombre(request.nombre());
-
-            try {
-                return tipoEmpleadoMapper.toResponse(tipoEmpleadoRepository.save(tipoEmpleado));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Tipo Empleado con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo empleado con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!tipoEmpleadoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Tipo Empleado no encontrado");
-        }
-        tipoEmpleadoRepository.deleteById(id);
+    public List<TipoEmpleadoResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

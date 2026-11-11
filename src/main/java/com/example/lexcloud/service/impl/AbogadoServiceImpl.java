@@ -15,7 +15,9 @@ import com.example.lexcloud.security.service.ContextoSeguridad;
 import com.example.lexcloud.service.AbogadoService;
 import com.example.lexcloud.util.BusquedaUtil;
 import com.example.lexcloud.util.Paginacion;
+import com.example.lexcloud.util.Validaciones;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class AbogadoServiceImpl implements AbogadoService {
 
     private final Abogado_Repository abogadoRepository;
@@ -49,11 +51,18 @@ public class AbogadoServiceImpl implements AbogadoService {
     }
 
     @Override
+    @Transactional
     public AbogadoResponseDTO guardar(AbogadoRequestDTO request) {
+        Validaciones.requerirNoNulo(request, "request");
+        Validaciones.requerirId(request.idPersona(), "idPersona");
+        Validaciones.requerirId(request.idFirma(), "idFirma");
+        Validaciones.requerirId(request.idTipoAbogado(), "idTipoAbogado");
+        String tarjeta = Validaciones.requerirNoBlank(request.tarjeta_Profesional(), "tarjeta_Profesional").trim();
         contextoSeguridad.verificarMismaFirma(request.idFirma());
 
         // 1. Convertir DTO a Entidad base
         Abogado abogado = abogadoMapper.toEntity(request);
+        abogado.setTarjeta_Profesional(tarjeta);
 
         // 2. Cargar relaciones físicas desde la BD
         Persona persona = personaRepository.findById(request.idPersona())
@@ -61,7 +70,7 @@ public class AbogadoServiceImpl implements AbogadoService {
         if (Boolean.FALSE.equals(persona.getActivo())) {
             throw new IllegalArgumentException("No se puede crear un abogado para una persona inactiva.");
         }
-        if ("0000000000".equals(persona.getCc())) {
+        if (ContextoSeguridad.CC_PERSONA_SISTEMA.equals(persona.getCc())) {
             throw new IllegalArgumentException("La persona del sistema no puede tener registro de abogado.");
         }
         abogado.setPersona(persona);
@@ -75,9 +84,20 @@ public class AbogadoServiceImpl implements AbogadoService {
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
         abogado.setTipo_Abogado(tipoAbogadoRepository.findById(request.idTipoAbogado())
                 .orElseThrow(() -> new EntityNotFoundException("Especialización no encontrada")));
+        abogado.setActivo(true);
 
         // 3. Guardar y retornar el ResponseDTO
-        return abogadoMapper.toResponse(abogadoRepository.save(abogado));
+        // A3: el catch distingue el duplicado real (carrera entre dos
+        // peticiones) de cualquier otra violación de integridad, que se
+        // re-lanza encadenando la causa en vez de tragársela.
+        try {
+            return abogadoMapper.toResponse(abogadoRepository.save(abogado));
+        } catch (DataIntegrityViolationException ex) {
+            if (abogadoRepository.findByPersonaId(request.idPersona()).isPresent()) {
+                throw new IllegalStateException("La persona ya tiene un registro de abogado.");
+            }
+            throw new IllegalStateException("No se pudo guardar el abogado. Verifique los datos e intente nuevamente.", ex);
+        }
     }
 
     @Override
@@ -97,11 +117,14 @@ public class AbogadoServiceImpl implements AbogadoService {
 
     @Override
     public List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad) {
+        return listarTipo(idFirma, especialidad, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    public List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad, int page, int size) {
         contextoSeguridad.verificarMismaFirma(idFirma);
-        // Sin variante paginada en el repositorio para esta consulta: la lista
-        // viene sin límite (un firma no suele tener miles de abogados por
-        // especialidad, pero es un residual de SVC-6).
-        List<Abogado> abogados = abogadoRepository.findByFirmaIdAndTipoAbogadoNombreIgnoreCase(idFirma, especialidad);
+        List<Abogado> abogados = abogadoRepository.findByFirmaIdAndTipoAbogadoNombreIgnoreCase(
+                idFirma, especialidad, Paginacion.crear(page, size));
 
         return abogadoMapper.toResponseList(abogados);
     }
@@ -115,7 +138,7 @@ public class AbogadoServiceImpl implements AbogadoService {
     public List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre, int page, int size) {
         contextoSeguridad.verificarMismaFirma(idFirma);
         // SVC-5: el nombre se escapa antes del LIKE (ver BusquedaUtil).
-        List<Abogado> abogados = abogadoRepository.findByAbogadoByNombre(
+        List<Abogado> abogados = abogadoRepository.findByNombre(
                 idFirma, BusquedaUtil.escaparLike(nombre), Paginacion.crear(page, size));
 
         return abogadoMapper.toResponseList(abogados);
@@ -131,7 +154,7 @@ public class AbogadoServiceImpl implements AbogadoService {
     @Override
     public Optional<AbogadoResponseDTO> buscarPorCc(String cc, Integer idFirma) {
         contextoSeguridad.verificarMismaFirma(idFirma);
-        return  abogadoRepository.findByAbogadoActivobyCc(cc, idFirma)
+        return  abogadoRepository.findByAbogadoActivoByCc(cc, idFirma)
                 .map(abogadoMapper::toResponse);
     }
 
@@ -143,59 +166,118 @@ public class AbogadoServiceImpl implements AbogadoService {
     }
 
     @Override
-    public AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request){
-        return abogadoRepository.findById(id).map(oldAbogado -> {
-            // Solo se puede modificar un abogado de la propia firma, y no se
-            // puede mover a otra firma.
-            contextoSeguridad.verificarAccesoAAbogado(oldAbogado);
-            contextoSeguridad.verificarMismaFirma(request.idFirma());
+    @Transactional
+    public AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request) {
+        Validaciones.requerirId(id, "id");
+        Validaciones.requerirNoNulo(request, "request");
+        Validaciones.requerirId(request.idPersona(), "idPersona");
+        Validaciones.requerirId(request.idFirma(), "idFirma");
+        Validaciones.requerirId(request.idTipoAbogado(), "idTipoAbogado");
+        String tarjeta = Validaciones.requerirNoBlank(request.tarjeta_Profesional(), "tarjeta_Profesional").trim();
 
-            // 1. Buscamos las nuevas entidades relacionadas por su ID
-            Firma nuevaFirma = firmaRepository.findById(request.idFirma())
-                    .orElseThrow(() -> new EntityNotFoundException("La firma con ID " + request.idFirma() + " no existe"));
-            Tipo_Abogado nuevoTipo = tipoAbogadoRepository.findById(request.idTipoAbogado())
-                    .orElseThrow(() -> new EntityNotFoundException("El tipo de abogado con ID " + request.idTipoAbogado() + " no existe"));
+        Abogado oldAbogado = abogadoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado"));
+        // Solo se puede modificar un abogado de la propia firma, y no se
+        // puede mover a otra firma.
+        contextoSeguridad.verificarAccesoAAbogado(oldAbogado);
+        contextoSeguridad.verificarMismaFirma(request.idFirma());
 
-            // 2. Actualizamos los campos de la entidad persistida
-            oldAbogado.setFirma(nuevaFirma);
-            oldAbogado.setTipo_Abogado(nuevoTipo);
-            oldAbogado.setTarjeta_Profesional(request.tarjeta_Profesional());
+        // M9 (mismo criterio que Cliente): un abogado inactivo no se edita;
+        // primero se reactiva con reactivarAbogado.
+        if (Boolean.FALSE.equals(oldAbogado.getActivo())) {
+            throw new IllegalStateException("No se puede actualizar un abogado inactivo.");
+        }
 
-            // Nota: Generalmente el ID de Persona no se cambia en un "Update Abogado"
+        // M5: validar la persona destino — debe existir, estar activa, no ser
+        // la persona del sistema y no tener ya otro registro de abogado.
+        Persona personaDestino = personaRepository.findById(request.idPersona())
+                .orElseThrow(() -> new EntityNotFoundException("Persona no encontrada"));
+        if (Boolean.FALSE.equals(personaDestino.getActivo())) {
+            throw new IllegalArgumentException("No se puede asignar un abogado a una persona inactiva.");
+        }
+        if (ContextoSeguridad.CC_PERSONA_SISTEMA.equals(personaDestino.getCc())) {
+            throw new IllegalArgumentException("La persona del sistema no puede tener registro de abogado.");
+        }
+        abogadoRepository.findByPersonaId(request.idPersona())
+                .filter(otro -> !otro.getId().equals(id))
+                .ifPresent(otro -> {
+                    throw new IllegalStateException("La persona ya tiene un registro de abogado.");
+                });
 
-            // 3. Guardamos y mapeamos a respuesta
+        // 1. Buscamos las nuevas entidades relacionadas por su ID
+        Firma nuevaFirma = firmaRepository.findById(request.idFirma())
+                .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada"));
+        Tipo_Abogado nuevoTipo = tipoAbogadoRepository.findById(request.idTipoAbogado())
+                .orElseThrow(() -> new EntityNotFoundException("Especialización no encontrada"));
+
+        // 2. Actualizamos los campos de la entidad persistida
+        oldAbogado.setPersona(personaDestino);
+        oldAbogado.setFirma(nuevaFirma);
+        oldAbogado.setTipo_Abogado(nuevoTipo);
+        oldAbogado.setTarjeta_Profesional(tarjeta);
+
+        // 3. Guardamos y mapeamos a respuesta (A3: mismo catch que en guardar).
+        try {
             return abogadoMapper.toResponse(abogadoRepository.save(oldAbogado));
-
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el abogado con ID: " + id));
+        } catch (DataIntegrityViolationException ex) {
+            if (abogadoRepository.findByPersonaId(request.idPersona())
+                    .filter(otro -> !otro.getId().equals(id)).isPresent()) {
+                throw new IllegalStateException("La persona ya tiene un registro de abogado.");
+            }
+            throw new IllegalStateException("No se pudo actualizar el abogado. Verifique los datos e intente nuevamente.", ex);
+        }
     }
 
     @Override
+    @Transactional
     public void desactivarAbogado(Integer idAbogado) {
-        // 1. Buscamos al abogado
+        Validaciones.requerirId(idAbogado, "idAbogado");
+        // A5: findById sin filtro de activo — un abogado ya inactivo debe
+        // encontrarse igual (la operación es idempotente); las consultas de
+        // listado filtran por activo y no servirían para localizarlo.
         Abogado abogado = abogadoRepository.findById(idAbogado)
                 .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado"));
 
         contextoSeguridad.verificarAccesoAAbogado(abogado);
 
-        // 2. Obtenemos su entidad Persona
-        Persona persona = abogado.getPersona();
+        // A5: la baja es SOLO del registro de abogado (flag propio
+        // Abogado.activo). La Persona NO se toca: desactivar al abogado no
+        // cierra su login, no le quita el rol ni lo saca de los listados de
+        // personas. Si la persona debe darse de baja, eso se hace en
+        // PersonaService.desactivar.
+        abogado.setActivo(false);
+        abogadoRepository.save(abogado);
+    }
 
-        // 3. Cambiamos el estado a false
-        persona.setActivo(false);
-
-        // 4. Guardamos la persona (esto desactiva al abogado en todo el sistema)
-        personaRepository.save(persona);
+    @Override
+    @Transactional
+    public void reactivarAbogado(Integer id) {
+        Validaciones.requerirId(id, "id");
+        if (!contextoSeguridad.esAdmin()) {
+            throw new SecurityException("Solo un administrador puede reactivar un abogado.");
+        }
+        // findById sin filtro de activo: el registro a reactivar es, por
+        // definición, inactivo y las consultas de listado no lo encontrarían.
+        Abogado abogado = abogadoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Abogado no encontrado"));
+        contextoSeguridad.verificarAccesoAAbogado(abogado);
+        // Solo se reactiva el flag del abogado; si su persona sigue inactiva,
+        // el abogado continúa fuera de los listados (que exigen persona
+        // activa) hasta que la persona se reactive en PersonaService.
+        abogado.setActivo(true);
+        abogadoRepository.save(abogado);
     }
 
     /**
      * S2: un abogado de otra firma no existe para quien consulta (se devuelve
-     * vacío, como hace ClienteService.buscarPorId). Si la firma del usuario no
-     * se puede resolver, no se puede verificar y se permite la consulta.
+     * vacío, como hace ClienteService.buscarPorId). C4 (fail-closed): si la
+     * firma del usuario no se puede resolver (sin registro de abogado), la
+     * consulta se deniega; nunca se permite por no poder verificar.
      */
     private boolean perteneceAFirmaAutenticada(Abogado abogado) {
         return contextoSeguridad.idFirmaAutenticada()
                 .map(firmaId -> abogado.getFirma() != null
                         && firmaId.equals(abogado.getFirma().getId()))
-                .orElse(true);
+                .orElse(false);
     }
 }

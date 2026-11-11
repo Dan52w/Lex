@@ -5,86 +5,42 @@ import com.example.lexcloud.dto.request.GeneroRequestDTO;
 import com.example.lexcloud.dto.response.GeneroResponseDTO;
 import com.example.lexcloud.entidades.Genero;
 import com.example.lexcloud.repositorios.Genero_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.GeneroService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class GeneroServiceImpl implements GeneroService {
-    private final Genero_Repository generoRepository;
-    private final GeneroMapper generoMapper;
+public class GeneroServiceImpl extends AbstractCatalogoService<Genero, GeneroRequestDTO, GeneroResponseDTO> implements GeneroService {
 
-    public GeneroServiceImpl(Genero_Repository generoRepository,
-                             GeneroMapper generoMapper) {
-        this.generoRepository = generoRepository;
-        this.generoMapper = generoMapper;
-    }
-
-    @Override
-    public GeneroResponseDTO guardar(GeneroRequestDTO request) {
-        if (generoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Genero genero = generoMapper.toEntity(request);
-        try {
-            return generoMapper.toResponse(generoRepository.save(genero));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<GeneroResponseDTO> listarPorNombre(String nombre) {
-        return generoMapper.toResponseList(generoRepository.findAllByNombre(nombre));
+    public GeneroServiceImpl(Genero_Repository repositorio, GeneroMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "MASCULINO",
+            "FEMENINO",
+            "NO BINARIO",
+            "PREFIERO NO DECIRLO"), "Genero",
+                GeneroRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Genero::getNombre, Genero::setNombre, Genero::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<GeneroResponseDTO> listarTodos() {
-        return generoMapper.toResponseList(generoRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<GeneroResponseDTO> buscarPorNombre(String nombre) {
-        return generoRepository.findByNombre(nombre)
-                .map(generoMapper::toResponse);
-    }
-
-    @Override
-    public Optional<GeneroResponseDTO> buscarPorId(Integer id) {
-        return generoRepository.findById(id)
-                .map(generoMapper::toResponse);
-    }
-
-    @Override
-    public GeneroResponseDTO actualizar(Integer id, GeneroRequestDTO request) {
-        return generoRepository.findById(id).map(genero -> {
-            generoRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            genero.setNombre(request.nombre());
-
-            try {
-                return generoMapper.toResponse(generoRepository.save(genero));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Genero con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el genero con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!generoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Genero no encontrado");
-        }
-        generoRepository.deleteById(id);
+    public List<GeneroResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

@@ -5,86 +5,44 @@ import com.example.lexcloud.dto.request.DiscapacidadRequestDTO;
 import com.example.lexcloud.dto.response.DiscapacidadResponseDTO;
 import com.example.lexcloud.entidades.Discapacidad;
 import com.example.lexcloud.repositorios.Discapacidad_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.DiscapacidadService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class DiscapacidadServiceImpl implements DiscapacidadService {
-    private final Discapacidad_Repository discapacidadRepository;
-    private final DiscapacidadMapper discapacidadMapper;
+public class DiscapacidadServiceImpl extends AbstractCatalogoService<Discapacidad, DiscapacidadRequestDTO, DiscapacidadResponseDTO> implements DiscapacidadService {
 
-    public DiscapacidadServiceImpl(Discapacidad_Repository discapacidadRepository,
-                                   DiscapacidadMapper discapacidadMapper) {
-        this.discapacidadRepository = discapacidadRepository;
-        this.discapacidadMapper = discapacidadMapper;
-    }
-
-    @Override
-    public DiscapacidadResponseDTO guardar(DiscapacidadRequestDTO request) {
-        if (discapacidadRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Discapacidad discapacidad = discapacidadMapper.toEntity(request);
-        try {
-            return discapacidadMapper.toResponse(discapacidadRepository.save(discapacidad));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<DiscapacidadResponseDTO> listarPorNombre(String nombre) {
-        return discapacidadMapper.toResponseList(discapacidadRepository.findAllByNombre(nombre));
+    public DiscapacidadServiceImpl(Discapacidad_Repository repositorio, DiscapacidadMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "NINGUNA",
+            "FÍSICA / MOTORA",
+            "VISUAL",
+            "AUDITIVA",
+            "COGNITIVA / MENTAL",
+            "MÚLTIPLE"), "Discapacidad",
+                DiscapacidadRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Discapacidad::getNombre, Discapacidad::setNombre, Discapacidad::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<DiscapacidadResponseDTO> listarTodos() {
-        return discapacidadMapper.toResponseList(discapacidadRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<DiscapacidadResponseDTO> buscarPorNombre(String nombre) {
-        return discapacidadRepository.findByNombre(nombre)
-                .map(discapacidadMapper::toResponse);
-    }
-
-    @Override
-    public Optional<DiscapacidadResponseDTO> buscarPorId(Integer id) {
-        return discapacidadRepository.findById(id)
-                .map(discapacidadMapper::toResponse);
-    }
-
-    @Override
-    public DiscapacidadResponseDTO actualizar(Integer id, DiscapacidadRequestDTO request) {
-        return discapacidadRepository.findById(id).map(discapacidad -> {
-            discapacidadRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            discapacidad.setNombre(request.nombre());
-
-            try {
-                return discapacidadMapper.toResponse(discapacidadRepository.save(discapacidad));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("La discapacidad con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el discapacidad con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!discapacidadRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Discapacidad no encontrado");
-        }
-        discapacidadRepository.deleteById(id);
+    public List<DiscapacidadResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

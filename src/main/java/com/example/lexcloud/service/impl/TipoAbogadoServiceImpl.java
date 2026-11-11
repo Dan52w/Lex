@@ -5,84 +5,27 @@ import com.example.lexcloud.dto.request.TipoAbogadoRequestDTO;
 import com.example.lexcloud.dto.response.TipoAbogadoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Abogado;
 import com.example.lexcloud.repositorios.TipoAbogado_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.TipoAbogadoService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class TipoAbogadoServiceImpl implements TipoAbogadoService {
-    private final TipoAbogado_Repository tipoAbogadoRepository;
-    private final TipoAbogadoMapper tipoAbogadoMapper;
+public class TipoAbogadoServiceImpl extends AbstractCatalogoService<Tipo_Abogado, TipoAbogadoRequestDTO, TipoAbogadoResponseDTO> implements TipoAbogadoService {
 
-    public TipoAbogadoServiceImpl(TipoAbogado_Repository tipoAbogadoRepository, TipoAbogadoMapper tipoAbogadoMapper) {
-        this.tipoAbogadoRepository = tipoAbogadoRepository;
-        this.tipoAbogadoMapper = tipoAbogadoMapper;
-    }
-
-    @Override
-    public TipoAbogadoResponseDTO guardar(TipoAbogadoRequestDTO request) {
-        if (tipoAbogadoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Tipo_Abogado tipoAbogado = tipoAbogadoMapper.toEntity(request);
-        try {
-            return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(tipoAbogado));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<TipoAbogadoResponseDTO> listarTodo() {
-        return tipoAbogadoMapper.toResponseList(tipoAbogadoRepository.findAll());
-    }
-
-    @Override
-    public List<TipoAbogadoResponseDTO> listarPorNombre(String nombre) {
-        return tipoAbogadoMapper.toResponseList(tipoAbogadoRepository.findAllByNombre(nombre));
-    }
-
-    @Override
-    public Optional<TipoAbogadoResponseDTO> buscarPorNombre(String nombre) {
-        return tipoAbogadoRepository.findByNombre(nombre)
-                .map(tipoAbogadoMapper::toResponse);
-    }
-
-    @Override
-    public Optional<TipoAbogadoResponseDTO> buscarPorId(Integer id) {
-        return tipoAbogadoRepository.findById(id)
-                .map(tipoAbogadoMapper::toResponse);
-    }
-
-    @Override
-    public TipoAbogadoResponseDTO actualizar(Integer id, TipoAbogadoRequestDTO request) {
-        return tipoAbogadoRepository.findById(id).map(oldTipoAbogado -> {
-            tipoAbogadoRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            oldTipoAbogado.setNombre(request.nombre());
-            try {
-                return tipoAbogadoMapper.toResponse(tipoAbogadoRepository.save(oldTipoAbogado));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Tipo Abogado con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró la especialización con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if(!tipoAbogadoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: especialización no encontrada con ID: " + id);
-        }
-        tipoAbogadoRepository.deleteById(id);
+    public TipoAbogadoServiceImpl(TipoAbogado_Repository repositorio, TipoAbogadoMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(), "Tipo Abogado",
+                TipoAbogadoRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Tipo_Abogado::getNombre, Tipo_Abogado::setNombre, Tipo_Abogado::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 }

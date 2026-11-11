@@ -1,92 +1,46 @@
 package com.example.lexcloud.service.impl;
 
-
-
 import com.example.lexcloud.dto.mappers.TipoRelacionEquipoMapper;
 import com.example.lexcloud.dto.request.TipoRelacionEquipoRequestDTO;
 import com.example.lexcloud.dto.response.TipoRelacionEquipoResponseDTO;
 import com.example.lexcloud.entidades.Tipo_Relacion_Equipo;
 import com.example.lexcloud.repositorios.TipoRelacionEquipo_Repository;
+import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.service.AbstractCatalogoService;
 import com.example.lexcloud.service.TipoRelacionEquipoService;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
+/**
+ * Lote 6 (M14): impl delgado — todo el flujo (normalización, duplicados,
+ * vetos de seeds, borrado veraz, solo-admin, búsqueda parcial, paginación)
+ * vive en {@link AbstractCatalogoService}.
+ */
 @Service
 @Transactional
-public class TipoRelacionEquipoServiceImpl implements TipoRelacionEquipoService {
-    private final TipoRelacionEquipo_Repository tipoRelacionEquipoRepository;
-    private final TipoRelacionEquipoMapper tipoRelacionEquipoMapper;
+public class TipoRelacionEquipoServiceImpl extends AbstractCatalogoService<Tipo_Relacion_Equipo, TipoRelacionEquipoRequestDTO, TipoRelacionEquipoResponseDTO> implements TipoRelacionEquipoService {
 
-    public TipoRelacionEquipoServiceImpl(TipoRelacionEquipo_Repository tipoRelacionEquipoRepository,
-                                         TipoRelacionEquipoMapper tipoRelacionEquipoMapper) {
-        this.tipoRelacionEquipoRepository = tipoRelacionEquipoRepository;
-        this.tipoRelacionEquipoMapper = tipoRelacionEquipoMapper;
-    }
-
-    @Override
-    public TipoRelacionEquipoResponseDTO guardar(TipoRelacionEquipoRequestDTO request) {
-        if (tipoRelacionEquipoRepository.findByNombre(request.nombre()).isPresent()) {
-            throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
-        }
-
-        Tipo_Relacion_Equipo tipoRelacionEquipo = tipoRelacionEquipoMapper.toEntity(request);
-        try {
-            return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
-        } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
-        }
-    }
-
-    @Override
-    public List<TipoRelacionEquipoResponseDTO> listarPorNombre(String nombre) {
-        return tipoRelacionEquipoMapper.toResponseList(tipoRelacionEquipoRepository.findAllByNombre(nombre));
+    public TipoRelacionEquipoServiceImpl(TipoRelacionEquipo_Repository repositorio, TipoRelacionEquipoMapper mapper, ContextoSeguridad contextoSeguridad) {
+        super(repositorio, contextoSeguridad, Set.of(
+            "SECRETARIO(A)",
+            "ASISTENTE LEGAL",
+            "APRENDIZ / JUDICANTE",
+            "CO-ABOGADO JUNIOR"), "Tipo Relacion Equipo",
+                TipoRelacionEquipoRequestDTO::nombre, mapper::toEntity, mapper::toResponse, mapper::toResponseList,
+                Tipo_Relacion_Equipo::getNombre, Tipo_Relacion_Equipo::setNombre, Tipo_Relacion_Equipo::getId,
+                repositorio::findByNombreIgnoreCase, repositorio::buscarPorNombreParcial, repositorio::buscarPorNombreParcial);
     }
 
     @Override
     public List<TipoRelacionEquipoResponseDTO> listarTodos() {
-        return tipoRelacionEquipoMapper.toResponseList(tipoRelacionEquipoRepository.findAll());
+        return super.listarTodo();
     }
 
     @Override
-    public Optional<TipoRelacionEquipoResponseDTO> buscarPorNombre(String nombre) {
-        return tipoRelacionEquipoRepository.findByNombre(nombre)
-                .map(tipoRelacionEquipoMapper::toResponse);
-    }
-
-    @Override
-    public Optional<TipoRelacionEquipoResponseDTO> buscarPorId(Integer id) {
-        return tipoRelacionEquipoRepository.findById(id)
-                .map(tipoRelacionEquipoMapper::toResponse);
-    }
-
-    @Override
-    public TipoRelacionEquipoResponseDTO actualizar(Integer id, TipoRelacionEquipoRequestDTO request) {
-        return tipoRelacionEquipoRepository.findById(id).map(tipoRelacionEquipo -> {
-            tipoRelacionEquipoRepository.findByNombre(request.nombre())
-                    .filter(otro -> !otro.getId().equals(id))
-                    .ifPresent(otro -> {
-                        throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
-                    });
-            tipoRelacionEquipo.setNombre(request.nombre());
-
-            try {
-                return tipoRelacionEquipoMapper.toResponse(tipoRelacionEquipoRepository.save(tipoRelacionEquipo));
-            } catch (DataIntegrityViolationException ex) {
-                throw new IllegalStateException("El Tipo Relacion Equipo con el nombre '" + request.nombre() + "' ya existe.");
-            }
-        }).orElseThrow(() -> new EntityNotFoundException("No se encontró el tipo relacion equipo con ID: " + id));
-    }
-
-    @Override
-    public void eliminar(Integer id) {
-        if (!tipoRelacionEquipoRepository.existsById(id)) {
-            throw new EntityNotFoundException("No se puede eliminar: Tipo relacion equipo no encontrado");
-        }
-        tipoRelacionEquipoRepository.deleteById(id);
+    public List<TipoRelacionEquipoResponseDTO> listarTodos(int page, int size) {
+        return super.listarTodo(page, size);
     }
 }

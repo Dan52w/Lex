@@ -14,4 +14,6 @@ public interface VinculoService {
     Optional<VinculoResponseDTO> buscarPorId(Integer id);
     VinculoResponseDTO actualizar(Integer id, VinculoRequestDTO request);
     void eliminar(Integer id);
+    List<VinculoResponseDTO> listarTodo(int page, int size);
+    List<VinculoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

@@ -1,8 +1,8 @@
 package com.example.lexcloud.config;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -14,6 +14,9 @@ import java.time.Duration;
  * explícitos: sin ellos, una llamada a un servicio externo colgado deja el
  * hilo del request esperando indefinidamente. Los servicios deben inyectar
  * este bean y nunca instanciar uno nuevo por llamada.</p>
+ *
+ * <p>Spring Boot 4 eliminó {@code RestTemplateBuilder}; el equivalente es
+ * construir la factoría directamente y pasarla al constructor.</p>
  */
 @Configuration
 public class HttpClientConfig {
@@ -25,10 +28,10 @@ public class HttpClientConfig {
     public static final Duration READ_TIMEOUT = Duration.ofMillis(30000);
 
     @Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder) {
-        return builder
-                .connectTimeout(CONNECT_TIMEOUT)
-                .readTimeout(READ_TIMEOUT)
-                .build();
+    public RestTemplate restTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(CONNECT_TIMEOUT);
+        factory.setReadTimeout(READ_TIMEOUT);
+        return new RestTemplate(factory);
     }
 }

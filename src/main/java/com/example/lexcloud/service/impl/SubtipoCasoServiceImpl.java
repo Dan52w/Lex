@@ -102,7 +102,7 @@ public class SubtipoCasoServiceImpl extends AbstractCatalogoService<Subtipo_Caso
         Tipo_Caso nuevoTipo = (Tipo_Caso) contexto;
         // M17 — Prohibido cambiar el tipo de un subtipo que ya tiene casos.
         if (!entidad.getTipoCaso().getId().equals(nuevoTipo.getId())
-                && casoRepository.existsBySubtipo_Caso_Id(entidad.getId())) {
+                && casoRepository.existsBySubtipoCasoId(entidad.getId())) {
             throw new IllegalStateException("No se puede cambiar el tipo de un subtipo con casos asociados.");
         }
         entidad.setNombre(nombreNormalizado);

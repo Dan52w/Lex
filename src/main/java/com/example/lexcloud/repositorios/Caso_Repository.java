@@ -15,11 +15,15 @@ public interface Caso_Repository extends JpaRepository<Caso, Integer> {
 
     /**
      * M17 (lote 6): ¿existe algún caso con este subtipo? Prohíbe cambiar el
-     * tipoCaso de un subtipo que ya tiene casos asociados. Derivado con el
-     * mismo patrón con guion bajo que findByAbogado_Id / existsByAbogado_Id
-     * de EquipoAbogado_Repository.
+     * tipoCaso de un subtipo que ya tiene casos asociados.
+     * No puede ser un derivado: el campo se llama subtipo_Caso y Spring Data
+     * parte el guion bajo como subtipo → caso → id ('subtipo' no existe en
+     * Caso). Se usa @Query con la ruta real c.subtipo_Caso.id, como el resto
+     * de consultas de este repositorio. Sin filtro de activo: el candado
+     * cuenta también los casos inactivos, que siguen asociados al subtipo.
      */
-    boolean existsBySubtipo_Caso_Id(Integer subtipoId);
+    @Query("SELECT COUNT(c) > 0 FROM Caso c WHERE c.subtipo_Caso.id = :subtipoId")
+    boolean existsBySubtipoCasoId(@Param("subtipoId") Integer subtipoId);
 
 
     // =========================================================================

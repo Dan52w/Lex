@@ -2,7 +2,6 @@ package com.example.lexcloud.security.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -10,11 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 public class AuthTokenFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
@@ -51,18 +48,17 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * C10 — el token se lee SOLO del header {@code Authorization: Bearer
+     * <token>}. El fallback a la cookie {@code jwt_token} se eliminó: con
+     * Bearer-only no existe ninguna cookie de sesión. Sin header, devuelve
+     * null y la petición sigue sin autenticación (el filtro no bloquea;
+     * es la cadena de seguridad la que exige autenticación donde toca).
+     */
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
         if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
-        }
-
-        if (request.getCookies() != null) {
-            return Arrays.stream(request.getCookies())
-                    .filter(cookie -> "jwt_token".equals(cookie.getName()))
-                    .map(Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
         }
 
         return null;

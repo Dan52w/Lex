@@ -14,4 +14,6 @@ public interface EstadoCivilService {
     Optional<EstadoCivilResponseDTO> buscarPorId(Integer id);
     EstadoCivilResponseDTO actualizar(Integer id, EstadoCivilRequestDTO request);
     void eliminar(Integer id);
+    List<EstadoCivilResponseDTO> listarTodos(int page, int size);
+    List<EstadoCivilResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

@@ -14,4 +14,6 @@ public interface TipoAgendaService {
     Optional<TipoAgendaResponseDTO> buscarPorId(Integer id);
     TipoAgendaResponseDTO actualizar(Integer id, TipoAgentaResquestDTO request);
     void eliminar(Integer id);
+    List<TipoAgendaResponseDTO> listarTodo(int page, int size);
+    List<TipoAgendaResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

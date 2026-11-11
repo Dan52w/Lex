@@ -13,4 +13,6 @@ public interface SubtipoCasoService {
     Optional<SubtipoCasoResponseDTO> buscarPorId(Integer id);
     SubtipoCasoResponseDTO actualizar(Integer id, SubtipoCasoRequestDTO request);
     void eliminar(Integer id);
+    List<SubtipoCasoResponseDTO> listarTodo(int page, int size);
+    List<SubtipoCasoResponseDTO> listarPorTipo(Integer idTipoCaso, int page, int size);
 }

@@ -14,4 +14,6 @@ public interface TipoViviendaService {
     Optional<TipoViviendaResponseDTO> buscarPorId(Integer id);
     TipoViviendaResponseDTO actualizar(Integer id, TipoViviendaRequestDTO request);
     void eliminar(Integer id);
+    List<TipoViviendaResponseDTO> listarTodos(int page, int size);
+    List<TipoViviendaResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

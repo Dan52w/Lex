@@ -88,14 +88,23 @@ public class WebSecurityConfig {
                                            AuthTokenFilter authTokenFilter,
                                            DaoAuthenticationProvider authProvider) throws Exception {
         http
+                // CSRF desactivado porque con Bearer-only no hay cookie de
+                // sesión: un sitio malicioso no puede hacer que el navegador
+                // envíe el token (vive en el cliente, no en una cookie), así
+                // que no hay petición forjada que aprovechar. Si algún día
+                // vuelve una cookie de autenticación, el CSRF debe reactivarse.
                 .csrf(AbstractHttpConfigurer::disable)
                 // Usamos el bean corsConfigurationSource definido arriba
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/api/auth/**").permitAll()
-                                .requestMatchers("/api/test/**").permitAll()
+                        // B5 — permitAll SOLO para /api/auth/login. El resto
+                        // de /api/auth/** (register, logout, existe-correo)
+                        // exige autenticación: /api/test/** ya no es público
+                        // (no existe ningún controlador bajo /api/test; era
+                        // una puerta latente).
+                        auth.requestMatchers("/api/auth/login").permitAll()
                                 .anyRequest().authenticated()
                 );
 

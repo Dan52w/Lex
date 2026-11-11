@@ -1,7 +1,10 @@
 package com.example.lexcloud.repositorios;
 
 import com.example.lexcloud.entidades.Tipo_Empleado;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,4 +14,17 @@ import java.util.Optional;
 public interface TipoEmpleado_Repository extends JpaRepository<Tipo_Empleado, Integer> {
     List<Tipo_Empleado> findAllByNombre(String nombre);
     Optional<Tipo_Empleado> findByNombre(String nombre);
+
+    /** A17 — duplicado case-insensitive por nombre normalizado. */
+    Optional<Tipo_Empleado> findByNombreIgnoreCase(String nombre);
+
+    /**
+     * M15 — búsqueda PARCIAL case-insensitive. El término llega ya escapado
+     * con BusquedaUtil.escaparLike; ESCAPE '\\' neutraliza %, _ y \\.
+     */
+    @Query("SELECT e FROM Tipo_Empleado e WHERE LOWER(e.nombre) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\'")
+    List<Tipo_Empleado> buscarPorNombreParcial(@Param("termino") String termino);
+
+    @Query("SELECT e FROM Tipo_Empleado e WHERE LOWER(e.nombre) LIKE LOWER(CONCAT('%', :termino, '%')) ESCAPE '\\'")
+    List<Tipo_Empleado> buscarPorNombreParcial(@Param("termino") String termino, Pageable pageable);
 }

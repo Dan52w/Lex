@@ -14,4 +14,6 @@ public interface EstadoService {
     Optional<EstadoResponseDTO> buscarPorId(Integer id);
     EstadoResponseDTO actualizar(Integer id, EstadoRequestDTO request);
     void eliminar(Integer id);
+    List<EstadoResponseDTO> listarTodos(int page, int size);
+    List<EstadoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

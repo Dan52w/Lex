@@ -16,4 +16,6 @@ public interface ClienteService {
     Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma);
     ClienteResponseDTO actualizar(Integer id, Integer idFirma, ClienteRequestDTO request);
     void desactivarCliente(Integer id, Integer idFirma);
+    // B3: reactivar un cliente dado de baja (solo admin, misma firma).
+    void reactivarCliente(Integer id, Integer idFirma);
 }

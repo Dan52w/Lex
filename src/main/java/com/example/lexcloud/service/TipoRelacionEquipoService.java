@@ -14,4 +14,6 @@ public interface TipoRelacionEquipoService {
     Optional<TipoRelacionEquipoResponseDTO> buscarPorId(Integer id);
     TipoRelacionEquipoResponseDTO actualizar(Integer id, TipoRelacionEquipoRequestDTO request);
     void eliminar(Integer id);
+    List<TipoRelacionEquipoResponseDTO> listarTodos(int page, int size);
+    List<TipoRelacionEquipoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

@@ -12,6 +12,10 @@ public interface CasoService {
     // las sin parámetros devuelven la primera página, tamaño máximo 100)
     List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona);
     List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona, int page, int size);
+    // M27 (Lote 10): convención unificada = filtros en el orden del nombre
+    // del método, idPersona al final, page/size al final de todo.
+    // listarCasosAutorizadosPorAbogadoYCliente SE QUEDA como está: su orden
+    // (abogado, luego cliente) ya coincide con su nombre.
     List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente);
     List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente, int page, int size);
     List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona);
@@ -20,9 +24,10 @@ public interface CasoService {
     List<CasoResponseDTO> listarPorEstado(String estadoNombre, Integer idPersona, int page, int size);
     List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona);
     List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona, int page, int size);
-    List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idPersona, Integer idEstado, Integer idSubtipo);
-    List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idPersona, Integer idEstado, Integer idSubtipo, int page, int size);
+    List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idSubtipo, Integer idEstado, Integer idPersona);
+    List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idSubtipo, Integer idEstado, Integer idPersona, int page, int size);
     List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso);
+    List<CasoResponseDTO> listarPorCasoPadre(Integer idCaso, int page, int size);
 
     // Nuevas búsquedas por radicados y Súper Buscador
     CasoResponseDTO buscarPorRadicadoInterno(String radicadoInterno, Integer idPersona);
@@ -40,4 +45,6 @@ public interface CasoService {
     CasoResponseDTO buscarPorId(Integer id);
     CasoResponseDTO actualizar(Integer id, CasoRequestDTO request);
     void desactivarCaso(Integer id);
+    /** Solo admin: vuelve a activar un caso inactivo (no reactiva nada más). */
+    void reactivarCaso(Integer id);
 }

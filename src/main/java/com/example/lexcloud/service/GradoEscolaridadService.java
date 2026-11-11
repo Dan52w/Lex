@@ -14,4 +14,6 @@ public interface GradoEscolaridadService {
     Optional<GradoEscolaridadResponseDTO> buscarPorId(Integer id);
     GradoEscolaridadResponseDTO actualizar(Integer id, GradoEscolaridadRequestDTO request);
     void eliminar(Integer id);
+    List<GradoEscolaridadResponseDTO> listarTodos(int page, int size);
+    List<GradoEscolaridadResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

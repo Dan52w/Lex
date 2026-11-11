@@ -14,4 +14,6 @@ public interface TipoIdentificacionService {
     Optional<TipoIdenficacionResponseDTO> buscarPorId(Integer id);
     TipoIdenficacionResponseDTO actualizar(Integer id, TipoIdentificacionRequestDTO request);
     void eliminar(Integer id);
+    List<TipoIdenficacionResponseDTO> listarTodos(int page, int size);
+    List<TipoIdenficacionResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

@@ -17,6 +17,8 @@ public interface VinculoCasoService {
     Optional<VinculoCasoResponseDTO> obtenerAbogadoPrincipal(Integer idCaso);
     Optional<VinculoCasoResponseDTO> obtenerCliente(Integer idCaso);
     void autorizarAcceso(Integer idVinculoCaso);
+    void desautorizarAcceso(Integer idVinculoCaso);
+    void rechazarAcceso(Integer idVinculoCaso);
     void eliminarVinculo(Integer id);
 
     // Métodos de validación de seguridad

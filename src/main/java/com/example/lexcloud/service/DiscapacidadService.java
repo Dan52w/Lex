@@ -14,4 +14,6 @@ public interface DiscapacidadService {
     Optional<DiscapacidadResponseDTO> buscarPorId(Integer id);
     DiscapacidadResponseDTO actualizar(Integer id, DiscapacidadRequestDTO request);
     void eliminar(Integer id);
+    List<DiscapacidadResponseDTO> listarTodos(int page, int size);
+    List<DiscapacidadResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

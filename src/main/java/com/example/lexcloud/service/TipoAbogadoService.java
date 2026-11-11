@@ -14,4 +14,6 @@ public interface TipoAbogadoService {
     Optional<TipoAbogadoResponseDTO> buscarPorId(Integer id);
     TipoAbogadoResponseDTO actualizar(Integer id, TipoAbogadoRequestDTO request);
     void eliminar(Integer id);
+    List<TipoAbogadoResponseDTO> listarTodo(int page, int size);
+    List<TipoAbogadoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

@@ -14,4 +14,6 @@ public interface TipoDocumentoService {
     Optional<TipoDocumentoResponseDTO> buscarPorId(Integer id);
     TipoDocumentoResponseDTO actualizar(Integer id, TipoDocumentoRequestDTO request);
     void eliminar(Integer id);
+    List<TipoDocumentoResponseDTO> listarTodo(int page, int size);
+    List<TipoDocumentoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

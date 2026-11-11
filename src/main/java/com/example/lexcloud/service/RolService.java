@@ -9,7 +9,9 @@ import java.util.Optional;
 public interface RolService {
     RolResponseDTO guardar(RolRequestDTO request);
     List<RolResponseDTO> listarTodo();
+    List<RolResponseDTO> listarTodo(int page, int size);
     List<RolResponseDTO> listarPorNombre(String nombre);
+    List<RolResponseDTO> listarPorNombre(String nombre, int page, int size);
     Optional<RolResponseDTO> buscarPorNombre(String nombre);
     Optional<RolResponseDTO> buscarPorId(Integer id);
     RolResponseDTO actualizar(Integer id, RolRequestDTO request);

@@ -14,4 +14,6 @@ public interface TipoClienteService {
     Optional<TipoClienteResponseDTO> buscarPorId(Integer id);
     TipoClienteResponseDTO actualizar(Integer id, TipoClienteRequestDTO request);
     void eliminar(Integer id);
+    List<TipoClienteResponseDTO> listarTodo(int page, int size);
+    List<TipoClienteResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

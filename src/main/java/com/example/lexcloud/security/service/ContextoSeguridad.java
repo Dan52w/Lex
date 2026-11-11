@@ -1,9 +1,14 @@
 package com.example.lexcloud.security.service;
 
+import com.example.lexcloud.entidades.EstadoVinculo;
 import com.example.lexcloud.entidades.Abogado;
 import com.example.lexcloud.entidades.Caso;
+import com.example.lexcloud.entidades.Cliente;
+import com.example.lexcloud.entidades.Firma;
+import com.example.lexcloud.entidades.Persona;
 import com.example.lexcloud.repositorios.Abogado_Repository;
 import com.example.lexcloud.repositorios.Caso_Repository;
+import com.example.lexcloud.repositorios.Persona_Repository;
 import com.example.lexcloud.repositorios.VinculoCaso_Repository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.core.Authentication;
@@ -11,7 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Resuelve la identidad del usuario autenticado (JWT) para los servicios.
@@ -23,32 +27,42 @@ import java.util.Set;
  *
  * <p><b>Modelo de autorización de esta fase:</b></p>
  * <ul>
- *   <li>El rol de administrador es el mismo que reconoce el front
- *       ({@code ADMINISTRADOR}, {@code ADMIN}, {@code ROLE_ADMIN}); solo él
- *       puede usar las variantes globales sin firma (SVC-2/SVC-3).</li>
+ *   <li>El administrador lo decide el flag {@code Rol.esAdmin} (migración V4),
+ *       no el nombre del rol: comparar nombres es frágil y el nombre en el JWT
+ *       puede quedar desactualizado si el rol cambia tras el login.</li>
  *   <li>El administrador es un rol <b>por firma</b>: puede ver cualquier caso
  *       de <i>su</i> firma sin vínculo, pero nunca datos de otra firma.</li>
  *   <li>Una persona sin registro de abogado no tiene firma resoluble: los
- *       métodos que exigen firma lanzan {@link SecurityException} en ese caso,
- *       salvo que el acceso se pueda verificar por vínculo autorizado.</li>
+ *       métodos que exigen firma deniegan en ese caso (fail-closed), salvo
+ *       {@link #verificarAccesoACaso(Integer)}, donde el acceso también se
+ *       puede verificar por vínculo autorizado.</li>
+ *   <li>Cuando un recurso existe pero el usuario no tiene acceso, la respuesta
+ *       es indistinguible de "no existe": {@link EntityNotFoundException}
+ *       con mensaje genérico, nunca un 403 que confirme la existencia.</li>
  * </ul>
  */
 @Component
 public class ContextoSeguridad {
 
-    /** Nombres de rol que el front trata como administrador (ver Sidebar.tsx). */
-    private static final Set<String> ROLES_ADMIN = Set.of("ADMINISTRADOR", "ADMIN", "ROLE_ADMIN");
+    /** NIT de la firma del sistema, sembrada por la migración V1 ('FIRMA SISTEMA'). */
+    public static final String NIT_FIRMA_SISTEMA = "0000000000";
+
+    /** Cédula de la persona del sistema, sembrada por la migración V1. */
+    public static final String CC_PERSONA_SISTEMA = "0000000000";
 
     private final Abogado_Repository abogadoRepository;
     private final Caso_Repository casoRepository;
     private final VinculoCaso_Repository vinculoCasoRepository;
+    private final Persona_Repository personaRepository;
 
     public ContextoSeguridad(Abogado_Repository abogadoRepository,
                              Caso_Repository casoRepository,
-                             VinculoCaso_Repository vinculoCasoRepository) {
+                             VinculoCaso_Repository vinculoCasoRepository,
+                             Persona_Repository personaRepository) {
         this.abogadoRepository = abogadoRepository;
         this.casoRepository = casoRepository;
         this.vinculoCasoRepository = vinculoCasoRepository;
+        this.personaRepository = personaRepository;
     }
 
     /** Id de persona del usuario autenticado (el id que el login devuelve al front). */
@@ -69,10 +83,17 @@ public class ContextoSeguridad {
         return principal.getNombreRol();
     }
 
-    /** Verdadero si el usuario autenticado tiene rol de administrador. */
+    /**
+     * Verdadero si el rol vigente de la persona autenticada tiene el flag
+     * {@code es_admin}. Se resuelve contra la base de datos (no contra el
+     * nombre del rol en el JWT) para que un cambio de rol o de flag tenga
+     * efecto sin esperar a que el usuario vuelva a iniciar sesión.
+     */
     public boolean esAdmin() {
-        String rol = rolAutenticado();
-        return rol != null && ROLES_ADMIN.contains(rol.trim().toUpperCase());
+        return personaRepository.findById(idPersonaAutenticada())
+                .map(persona -> persona.getRol() != null
+                        && Boolean.TRUE.equals(persona.getRol().getEsAdmin()))
+                .orElse(false);
     }
 
     /**
@@ -110,36 +131,74 @@ public class ContextoSeguridad {
 
     /**
      * Exige que la firma consultada sea la del usuario autenticado.
-     * Si la firma del usuario no se puede resolver (sin registro de abogado),
-     * no se puede verificar y se permite la operación: ese caso queda
-     * documentado como riesgo residual (el modelo no guarda la firma en
-     * Persona, solo en Abogado).
+     * Fail-closed: si la firma del usuario no se puede resolver (sin registro
+     * de abogado), la operación se deniega; nunca se permite por no poder
+     * verificar.
      */
     public void verificarMismaFirma(Integer idFirma) {
         if (idFirma == null) {
             throw new IllegalArgumentException("Debe indicar la firma.");
         }
-        Optional<Integer> propia = idFirmaAutenticada();
-        if (propia.isPresent() && !propia.get().equals(idFirma)) {
+        Integer propia = idFirmaAutenticadaRequerida();
+        if (!propia.equals(idFirma)) {
             throw new SecurityException("No tiene permisos para consultar datos de otra firma.");
         }
     }
 
     /**
      * Exige que el abogado consultado pertenezca a la firma del usuario
-     * autenticado (o sea el propio usuario). Si la firma del usuario no se
-     * puede resolver, no se puede verificar y se permite la operación.
+     * autenticado (o sea el propio usuario).
+     *
+     * <ul>
+     *   <li>Abogado inexistente ({@code null}) o de otra firma:
+     *       {@link EntityNotFoundException} con mensaje genérico, indistinguible
+     *       de "no existe" (no revela la existencia del objetivo).</li>
+     *   <li>Firma del usuario no resoluble (sin registro de abogado):
+     *       {@link SecurityException} genérica (fail-closed). Es una violación
+     *       del propio contexto del llamador y no revela nada del objetivo.</li>
+     * </ul>
      */
     public void verificarAccesoAAbogado(Abogado abogado) {
         if (abogado == null) {
-            throw new EntityNotFoundException("Abogado no encontrado.");
+            throw new EntityNotFoundException("Recurso no encontrado");
         }
-        Optional<Integer> propia = idFirmaAutenticada();
+        Integer propia = idFirmaAutenticadaRequerida();
         boolean esPropio = abogado.getPersona() != null
                 && abogado.getPersona().getId().equals(idPersonaAutenticada());
-        if (propia.isPresent() && !esPropio
-                && !propia.get().equals(abogado.getFirma().getId())) {
-            throw new SecurityException("No tiene permisos para consultar datos de un abogado de otra firma.");
+        if (!esPropio && (abogado.getFirma() == null
+                || !propia.equals(abogado.getFirma().getId()))) {
+            throw new EntityNotFoundException("Recurso no encontrado");
+        }
+    }
+
+    /**
+     * Exige acceso al abogado por id: lo carga (inexistente →
+     * {@link EntityNotFoundException} genérico) y delega en
+     * {@link #verificarAccesoAAbogado(Abogado)}.
+     */
+    public void verificarAccesoAAbogadoPorId(Integer idAbogado) {
+        if (idAbogado == null) {
+            throw new IllegalArgumentException("Debe indicar el abogado.");
+        }
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
+        verificarAccesoAAbogado(abogado);
+    }
+
+    /**
+     * Exige que el cliente consultado pertenezca a la firma del usuario
+     * autenticado. Cliente inexistente ({@code null}), sin firma o de otra
+     * firma: {@link EntityNotFoundException} con mensaje genérico,
+     * indistinguible de "no existe". Firma del usuario no resoluble:
+     * {@link SecurityException} genérica (fail-closed).
+     */
+    public void verificarAccesoACliente(Cliente cliente) {
+        if (cliente == null) {
+            throw new EntityNotFoundException("Recurso no encontrado");
+        }
+        Integer propia = idFirmaAutenticadaRequerida();
+        if (cliente.getFirma() == null || !propia.equals(cliente.getFirma().getId())) {
+            throw new EntityNotFoundException("Recurso no encontrado");
         }
     }
 
@@ -148,13 +207,19 @@ public class ContextoSeguridad {
      * (esto incluye al administrador de la firma) o el usuario tiene un
      * vínculo autorizado con él (cubre al personal sin registro de abogado).
      * El caso raíz del sistema (id 1) nunca admite esta operación.
+     *
+     * <p>Si el caso no existe o el usuario no tiene acceso, se lanza
+     * {@link EntityNotFoundException} con mensaje genérico: ambas respuestas
+     * son indistinguibles. La guarda del caso raíz se mantiene centralizada
+     * aquí (los {@code if (id == 1)} duplicados de los servicios se eliminan
+     * en sus lotes correspondientes).</p>
      */
     public void verificarAccesoACaso(Integer idCaso) {
         if (idCaso == null) {
             throw new IllegalArgumentException("Debe indicar el caso.");
         }
         Caso caso = casoRepository.findById(idCaso)
-                .orElseThrow(() -> new EntityNotFoundException("Caso no encontrado con ID: " + idCaso));
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
         if (caso.getId() == 1) {
             throw new SecurityException("El caso raíz del sistema no admite esta operación.");
         }
@@ -163,10 +228,20 @@ public class ContextoSeguridad {
                 && firma.get().equals(caso.getFirma().getId())) {
             return;
         }
-        if (vinculoCasoRepository.existsByPersonaFirma_IdAndCaso_IdAndAutorizadoTrue(
-                idPersonaAutenticada(), idCaso)) {
+        if (vinculoCasoRepository.existsByPersonaFirma_IdAndCaso_IdAndEstado(
+                idPersonaAutenticada(), idCaso, EstadoVinculo.AUTORIZADO)) {
             return;
         }
-        throw new SecurityException("No tiene acceso al caso con ID: " + idCaso);
+        throw new EntityNotFoundException("Recurso no encontrado");
+    }
+
+    /** Verdadero si la persona es la persona del sistema (null-safe). */
+    public boolean esPersonaSistema(Persona persona) {
+        return persona != null && CC_PERSONA_SISTEMA.equals(persona.getCc());
+    }
+
+    /** Verdadero si la firma es la firma del sistema (null-safe). */
+    public boolean esFirmaSistema(Firma firma) {
+        return firma != null && NIT_FIRMA_SISTEMA.equals(firma.getNit());
     }
 }

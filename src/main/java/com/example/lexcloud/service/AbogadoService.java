@@ -12,10 +12,12 @@ public interface AbogadoService {
     List<AbogadoResponseDTO> listarTodos(Integer idFirma);
     List<AbogadoResponseDTO> listarTodos(Integer idFirma, int page, int size);
     List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad);
+    List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad, int page, int size);
     List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre);
     List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre, int page, int size);
     Optional<AbogadoResponseDTO> buscarPorCc(String cc, Integer idFirma);
     Optional<AbogadoResponseDTO> buscarPorPersonaId(Integer id);
     AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request);
     void desactivarAbogado(Integer id);
+    void reactivarAbogado(Integer id);
 }

@@ -3,6 +3,8 @@ package com.example.lexcloud.security.jwt;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -13,6 +15,8 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
     @Value("${lexcloud.jwt.secret}")
     private String jwtSecret;
@@ -46,9 +50,11 @@ public class JwtUtil {
                     .parse(authToken);
             return true;
         } catch (Exception e) {
-            //Necesitamos ver qué está fallando realmente en la consola de Railway
-            System.out.println("ERROR CRÍTICO EN EL FILTRO DE AUTENTICACIÓN: " + e.getMessage());
-            e.printStackTrace();
+            // B4 — sin System.out ni stack trace: solo el mensaje, en debug
+            // (un token inválido/expirado es un evento rutinario, no un
+            // error crítico). El detalle completo queda disponible si se
+            // sube el nivel del logger de esta clase.
+            log.debug("Token JWT inválido: {}", e.getMessage());
         }
         return false;
     }

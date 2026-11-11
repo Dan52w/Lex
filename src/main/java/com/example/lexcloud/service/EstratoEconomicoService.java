@@ -14,4 +14,6 @@ public interface EstratoEconomicoService {
     Optional<EstratoEconomicoResponseDTO> buscarPorId(Integer id);
     EstratoEconomicoResponseDTO actualizar(Integer id, EstratoEconomicoRequestDTO request);
     void eliminar(Integer id);
+    List<EstratoEconomicoResponseDTO> listarTodos(int page, int size);
+    List<EstratoEconomicoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

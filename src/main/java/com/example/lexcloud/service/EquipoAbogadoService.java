@@ -11,10 +11,15 @@ public interface EquipoAbogadoService {
     List<EquipoAbogadoResponseDTO> listarTodosActivos();
     List<EquipoAbogadoResponseDTO> listarTodosActivos(int page, int size);
     List<EquipoAbogadoResponseDTO> listarPorAbogado(Integer idAbogado);
+    List<EquipoAbogadoResponseDTO> listarPorAbogado(Integer idAbogado, int page, int size);
     List<EquipoAbogadoResponseDTO> listarActivosPorAbogado(Integer idAbogado);
+    List<EquipoAbogadoResponseDTO> listarActivosPorAbogado(Integer idAbogado, int page, int size);
     List<EquipoAbogadoResponseDTO> listarPorPersona(Integer idPersona);
+    List<EquipoAbogadoResponseDTO> listarPorPersona(Integer idPersona, int page, int size);
     List<EquipoAbogadoResponseDTO> listarPorTipoRelacion(Integer idTipoRelacion);
+    List<EquipoAbogadoResponseDTO> listarPorTipoRelacion(Integer idTipoRelacion, int page, int size);
     List<EquipoAbogadoResponseDTO> listarActivosPorTipoRelacion(Integer idTipoRelacion);
+    List<EquipoAbogadoResponseDTO> listarActivosPorTipoRelacion(Integer idTipoRelacion, int page, int size);
     void desactivarAsignacion(Integer idAbogado, Integer idPersona);
     void eliminarAsignacion(Integer id);
 }

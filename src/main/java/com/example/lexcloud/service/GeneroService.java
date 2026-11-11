@@ -14,4 +14,6 @@ public interface GeneroService {
     Optional<GeneroResponseDTO> buscarPorId(Integer id);
     GeneroResponseDTO actualizar(Integer id, GeneroRequestDTO request);
     void eliminar(Integer id);
+    List<GeneroResponseDTO> listarTodos(int page, int size);
+    List<GeneroResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

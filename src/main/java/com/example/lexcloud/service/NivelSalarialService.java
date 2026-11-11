@@ -14,4 +14,6 @@ public interface NivelSalarialService {
     Optional<NivelSalarialResponseDTO> buscarPorId(Integer id);
     NivelSalarialResponseDTO actualizar(Integer id, NivelSalarialRequestDTO request);
     void eliminar(Integer id);
+    List<NivelSalarialResponseDTO> listarTodos(int page, int size);
+    List<NivelSalarialResponseDTO> listarPorRango(String rango, int page, int size);
 }

@@ -14,4 +14,6 @@ public interface TipoEmpleadoService {
     Optional<TipoEmpleadoResponseDTO> buscarPorId(Integer id);
     TipoEmpleadoResponseDTO actualizar(Integer id, TipoEmpleadoRequestDTO request);
     void eliminar(Integer id);
+    List<TipoEmpleadoResponseDTO> listarTodos(int page, int size);
+    List<TipoEmpleadoResponseDTO> listarPorNombre(String nombre, int page, int size);
 }

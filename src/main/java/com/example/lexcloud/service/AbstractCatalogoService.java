@@ -27,7 +27,7 @@ import java.util.function.Supplier;
  * mapper, sino de adaptadores funcionales (referencias a métodos del repositorio,
  * del mapper y de la entidad) que cada impl pasa por constructor. El flujo
  * completo — normalización (A17), duplicados (A16), vetos de seeds (A14),
- * borrado con mensaje veraz (A15), solo-admin en escrituras (C3), búsqueda
+ * borrado con mensaje veraz (A15), solo-súper-admin en escrituras (C3, V5), búsqueda
  * parcial (M15) y paginación (M1) — vive UNA sola vez aquí.</p>
  *
  * <p>Particularidades por catálogo, vía hooks protegidos:</p>
@@ -122,12 +122,15 @@ public abstract class AbstractCatalogoService<E, Req, Resp> {
 
     // =========================================================================
     // C3 — Escrituras solo admin; las lecturas quedan abiertas.
+    // V5: los catálogos son globales, así que sus escrituras son SOLO
+    // súper admin. Un admin de firma no puede crear ni tocar valores de
+    // catálogo (los comparten todas las firmas).
     // =========================================================================
 
-    /** Exige rol admin al inicio de guardar/actualizar/eliminar. */
+    /** Exige rol súper admin al inicio de guardar/actualizar/eliminar. */
     protected void exigirAdmin() {
-        if (!contextoSeguridad.esAdmin()) {
-            throw new SecurityException("Solo un administrador puede modificar los catálogos.");
+        if (!contextoSeguridad.esSuperAdmin()) {
+            throw new SecurityException("Solo un súper administrador puede modificar los catálogos.");
         }
     }
 

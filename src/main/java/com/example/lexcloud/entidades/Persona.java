@@ -54,6 +54,21 @@ public class Persona {
     @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
+    /**
+     * Firma a la que pertenece la persona (migración V5, nullable, FK a
+     * {@code firmas}). Al crear un abogado se fija igual a la firma del
+     * abogado; al crear un admin o miembro no abogado se fija a la firma
+     * elegida. NULL = sin firma (súper admin, o persona aún sin asignar).
+     *
+     * <p>Se mapea como {@code Integer} plano (no {@code @ManyToOne}): todo
+     * el código trabaja con ids de firma, la FK la impone la base de datos,
+     * y así no se arrastra una asociación perezosa a cada consulta de
+     * personas. La resolución de firma vive en
+     * {@code ContextoSeguridad.resolverIdFirmaDePersona}.</p>
+     */
+    @Column(name = "id_firma")
+    private Integer idFirma;
+
     @JsonIgnore
     @OneToOne(mappedBy = "persona")
     private Abogado abogado;
@@ -176,6 +191,14 @@ public class Persona {
 
     public void setTelefono(String telefono) {
         this.telefono = telefono;
+    }
+
+    public Integer getIdFirma() {
+        return idFirma;
+    }
+
+    public void setIdFirma(Integer idFirma) {
+        this.idFirma = idFirma;
     }
 
     // Igualdad por identidad de BD: dos instancias representan la misma

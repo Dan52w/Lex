@@ -16,5 +16,8 @@ public record PersonaResponseDTO(Integer id,
                                  // B6: la entidad Persona guarda LocalDate (fecha, sin hora);
                                  // antes se exponía como LocalDateTime. El mapeo en
                                  // PersonaMapper es ahora directo y no exige ajuste.
-                                 LocalDate fechaNacimiento) {
+                                 LocalDate fechaNacimiento,
+                                 // V5: firma a la que pertenece la persona
+                                 // (personas.id_firma, null si no tiene).
+                                 Integer idFirma) {
 }

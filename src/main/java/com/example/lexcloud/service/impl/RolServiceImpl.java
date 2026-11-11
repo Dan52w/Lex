@@ -31,10 +31,16 @@ public class RolServiceImpl implements RolService {
         this.contextoSeguridad = contextoSeguridad;
     }
 
-    /** C3: las escrituras de roles son solo para admin; las lecturas quedan abiertas. */
-    private void exigirAdmin() {
-        if (!contextoSeguridad.esAdmin()) {
-            throw new SecurityException("Solo un administrador puede modificar los roles.");
+    /**
+     * V5: las escrituras de roles son SOLO súper admin (gestión global).
+     * Un admin de firma no puede crear, renombrar ni borrar roles: un rol
+     * nuevo con es_admin cambiaría el gobierno de todo el sistema. Las
+     * lecturas quedan abiertas. (El flag es_admin de un rol nuevo sigue
+     * naciendo en false: solo una migración o un admin por BD puede darlo.)
+     */
+    private void exigirSuperAdmin() {
+        if (!contextoSeguridad.esSuperAdmin()) {
+            throw new SecurityException("Solo un súper administrador puede modificar los roles.");
         }
     }
 
@@ -48,7 +54,7 @@ public class RolServiceImpl implements RolService {
     public RolResponseDTO guardar(RolRequestDTO request) {
         Validaciones.requerirNoNulo(request, "request");
         String nombre = Validaciones.requerirNoBlank(request.nombre(), "nombre").trim();
-        exigirAdmin();
+        exigirSuperAdmin();
         if (rolRepository.findByNombreIgnoreCase(nombre).isPresent()) {
             throw new IllegalStateException("El rol con el nombre '" + nombre + "' ya existe.");
         }
@@ -117,7 +123,7 @@ public class RolServiceImpl implements RolService {
         Validaciones.requerirId(id, "id");
         Validaciones.requerirNoNulo(request, "request");
         String nombre = Validaciones.requerirNoBlank(request.nombre(), "nombre").trim();
-        exigirAdmin();
+        exigirSuperAdmin();
         Rol rolExistente = rolRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Rol no encontrado"));
         // El veto solo aplica si el nombre cambia de verdad: actualizar con el
@@ -160,7 +166,7 @@ public class RolServiceImpl implements RolService {
     @Transactional
     public void eliminar(Integer id) {
         Validaciones.requerirId(id, "id");
-        exigirAdmin();
+        exigirSuperAdmin();
         // A15: cargar la entidad (404 si no existe) y borrar con delete(entidad),
         // no deleteById (evita el TOCTOU con EmptyResultDataAccessException).
         Rol rol = rolRepository.findById(id)

@@ -1,6 +1,7 @@
 package com.example.lexcloud.api;
 
 import com.example.lexcloud.dto.request.FirmaRequestDTO;
+import com.example.lexcloud.dto.response.AdministradorFirmaResponseDTO;
 import com.example.lexcloud.dto.response.FirmaResponseDTO;
 import com.example.lexcloud.service.FirmaService;
 import jakarta.validation.Valid;
@@ -49,6 +50,16 @@ public class FirmaController {
         return firmaService.buscarPorId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 3b. V5: administradores de una firma (solo súper admin, guarda en el
+    // servicio). La usa la sección "Súper admin" del front.
+    @GetMapping("/{id}/administradores")
+    public ResponseEntity<List<AdministradorFirmaResponseDTO>> listarAdministradores(
+            @PathVariable Integer id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(firmaService.listarAdministradoresPorFirma(id, page, size));
     }
 
     // 4. Listar firmas por nombre (Búsqueda de texto)

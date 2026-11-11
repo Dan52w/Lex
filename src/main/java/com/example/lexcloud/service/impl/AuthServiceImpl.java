@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -56,9 +58,27 @@ public class AuthServiceImpl implements AuthService {
         // La comprobación del count va ANTES de esAdmin(): un llamador sin
         // sesión haría que esAdmin() lanzara SecurityException, y en
         // bootstrap no hay sesión que verificar.
-        if (loginRepository.count() != 0 && !contextoSeguridad.esAdmin()) {
+        //
+        // V5 — tres niveles en el registro (fail-closed):
+        //   * Bootstrap (count == 0): la primera cuenta es SUPER_ADMIN. La
+        //     persona destino debe tener ese rol (asignado por SQL antes del
+        //     registro); si tiene otro rol, el registro se deniega con el
+        //     mensaje genérico. La comprobación va abajo, tras cargar la
+        //     persona.
+        //   * Súper admin: puede registrar login para CUALQUIER persona.
+        //   * Admin de firma: solo para personas de su firma, y nunca para
+        //     una persona con rol admin (el rol del login viene de la
+        //     persona: un admin de firma no puede crear otro admin).
+        //   * Abogado común / resto: 403. Si no se puede determinar la firma
+        //     de la persona objetivo o del solicitante, 403.
+        boolean bootstrap = loginRepository.count() == 0;
+        boolean soySuperAdmin = false;
+        if (!bootstrap && !contextoSeguridad.esAdmin()) {
             log.warn("Registro denegado: el usuario autenticado no es administrador");
             throw new SecurityException("No tiene permisos para registrar credenciales.");
+        }
+        if (!bootstrap) {
+            soySuperAdmin = contextoSeguridad.esSuperAdmin();
         }
 
         // A6 — normalización del correo ANTES de cualquier comprobación y
@@ -112,6 +132,37 @@ public class AuthServiceImpl implements AuthService {
                     request.idPersona());
             throw new IllegalArgumentException(MENSAJE_REGISTRO_GENERICO);
         }
+
+        // V5 — autorización por persona objetivo (tras cargar la persona;
+        // todas las denegaciones usan el mensaje genérico, C2).
+        if (bootstrap) {
+            // La primera cuenta es SUPER_ADMIN, no ADMINISTRADOR.
+            if (!ContextoSeguridad.esRolSuperAdmin(persona.getRol())) {
+                log.warn("Registro bootstrap denegado: la persona destino no tiene rol SUPER_ADMIN (idPersona={})",
+                        request.idPersona());
+                throw new IllegalArgumentException(MENSAJE_REGISTRO_GENERICO);
+            }
+        } else if (!soySuperAdmin) {
+            // Admin de firma: nunca registra un login con rol admin (el rol
+            // del login viene de la persona objetivo).
+            if (ContextoSeguridad.esRolAdmin(persona.getRol())) {
+                log.warn("Registro denegado: un admin de firma no puede registrar logins para personas con rol admin (idPersona={})",
+                        request.idPersona());
+                throw new IllegalArgumentException(MENSAJE_REGISTRO_GENERICO);
+            }
+            // Admin de firma: solo personas de su firma. Fail-closed: si no
+            // se puede determinar alguna de las dos firmas, se deniega.
+            Optional<Integer> firmaObjetivo =
+                    contextoSeguridad.resolverIdFirmaDePersona(persona.getId());
+            Optional<Integer> miFirma = contextoSeguridad.idFirmaAutenticada();
+            if (firmaObjetivo.isEmpty() || miFirma.isEmpty()
+                    || !firmaObjetivo.get().equals(miFirma.get())) {
+                log.warn("Registro denegado: la persona objetivo no pertenece a la firma del admin (idPersona={})",
+                        request.idPersona());
+                throw new IllegalArgumentException(MENSAJE_REGISTRO_GENERICO);
+            }
+        }
+        // Súper admin: sin restricción de alcance (cualquier persona).
 
         Login login = new Login();
         login.setCorreo(correo);

@@ -211,6 +211,14 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
         // por firma del repositorio), no en memoria después de paginar.
         if (contextoSeguridad.esAdmin()
                 && !idPersona.equals(contextoSeguridad.idPersonaAutenticada())) {
+            // V5: el súper admin consulta los casos de otra persona sin
+            // filtro de firma (global); el admin de firma solo los de su
+            // firma. Sin firma resoluble no hay casos que mostrar (fail-closed).
+            if (contextoSeguridad.esSuperAdmin()) {
+                return vinculoCasoMapper.toResponseList(
+                        vinculoCasoRepository.findByPersonaFirma_IdAndEstado(
+                                idPersona, EstadoVinculo.AUTORIZADO, Paginacion.crear(page, size)));
+            }
             // Un administrador consulta los casos de otra persona: solo los de su firma.
             // Sin firma resoluble no hay casos que mostrar (fail-closed).
             return contextoSeguridad.idFirmaAutenticada()
@@ -247,6 +255,12 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
         // M26: si NO es resoluble (personal sin registro de abogado), ve los
         // pendientes de los casos en los que tiene un vínculo AUTORIZADO;
         // no se lanza 403: ese perfil accede por vínculo autorizado.
+        // V5: el súper admin es la única excepción a C8: ve los pendientes
+        // de todas las firmas (variante global del repositorio).
+        if (contextoSeguridad.esSuperAdmin()) {
+            return vinculoCasoMapper.toResponseList(
+                    vinculoCasoRepository.findPendientesAutorizacion(Paginacion.crear(page, size)));
+        }
         return contextoSeguridad.idFirmaAutenticada()
                 .map(firmaId -> vinculoCasoMapper.toResponseList(
                         vinculoCasoRepository.findPendientesAutorizacionPorFirma(
@@ -394,19 +408,24 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
             // casos de su firma: el caso debe pertenecer a su firma, o la
             // persona consultada debe pertenecer a su firma (cuando su firma
             // sea resoluble). En caso contrario, 404 genérico.
-            Caso caso = casoRepository.findById(idCaso)
-                    .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
-            Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
-            boolean casoDeSuFirma = firmaAdmin.isPresent()
-                    && caso.getFirma() != null
-                    && firmaAdmin.get().equals(caso.getFirma().getId());
-            boolean personaDeSuFirma = firmaAdmin.isPresent()
-                    && abogadoRepository.findByPersonaId(idPersona)
-                            .map(abogado -> abogado.getFirma() != null
-                                    && firmaAdmin.get().equals(abogado.getFirma().getId()))
-                            .orElse(false);
-            if (!casoDeSuFirma && !personaDeSuFirma) {
-                throw new EntityNotFoundException("Recurso no encontrado");
+            // V5: el súper admin no se acota (ve cualquier caso/persona).
+            // La firma de la persona consultada se resuelve por abogado o
+            // por personas.id_firma (antes solo por abogado: un admin no
+            // abogado quedaba fuera del chequeo).
+            if (!contextoSeguridad.esSuperAdmin()) {
+                Caso caso = casoRepository.findById(idCaso)
+                        .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
+                Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+                boolean casoDeSuFirma = firmaAdmin.isPresent()
+                        && caso.getFirma() != null
+                        && firmaAdmin.get().equals(caso.getFirma().getId());
+                boolean personaDeSuFirma = firmaAdmin.isPresent()
+                        && contextoSeguridad.resolverIdFirmaDePersona(idPersona)
+                                .map(firmaPersona -> firmaPersona.equals(firmaAdmin.get()))
+                                .orElse(false);
+                if (!casoDeSuFirma && !personaDeSuFirma) {
+                    throw new EntityNotFoundException("Recurso no encontrado");
+                }
             }
         }
         return vinculoCasoRepository.existsByPersonaFirma_IdAndCaso_IdAndEstado(

@@ -65,6 +65,11 @@ public interface VinculoCaso_Repository extends JpaRepository<Vinculo_Caso, Inte
             "AND vc2.estado = com.example.lexcloud.entidades.EstadoVinculo.AUTORIZADO) " +
             "ORDER BY vc.id";
 
+    String Q_PENDIENTES_GLOBAL =
+            "SELECT vc FROM Vinculo_Caso vc " +
+            "WHERE vc.estado = com.example.lexcloud.entidades.EstadoVinculo.PENDIENTE";
+    String Q_PENDIENTES_GLOBAL_PAG = Q_PENDIENTES_GLOBAL + " ORDER BY vc.id";
+
     // 1. Verificar si un abogado/personal tiene acceso autorizado a un caso
     // (M13: por estado, no por flag). La usa ContextoSeguridad.
     boolean existsByPersonaFirma_IdAndCaso_IdAndEstado(
@@ -149,4 +154,9 @@ public interface VinculoCaso_Repository extends JpaRepository<Vinculo_Caso, Inte
     @Query(Q_PENDIENTES_POR_PERSONA)
     List<Vinculo_Caso> findPendientesPorPersona(
             @Param("personaId") Integer personaId, Pageable pageable);
+
+    // 10c. V5: TODOS los vínculos pendientes (solo súper admin, global).
+    // La rama global sin firma (C8) sigue cerrada para el resto.
+    @Query(Q_PENDIENTES_GLOBAL_PAG)
+    List<Vinculo_Caso> findPendientesAutorizacion(Pageable pageable);
 }

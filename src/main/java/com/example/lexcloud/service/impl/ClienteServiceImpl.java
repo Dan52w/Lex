@@ -171,6 +171,16 @@ public class ClienteServiceImpl implements ClienteService {
         if (!contextoSeguridad.esAdmin()) {
             throw new SecurityException("Solo un administrador puede listar los clientes de todas las firmas.");
         }
+        // V5: el listado global es solo para el súper admin y el admin
+        // bootstrap (sin firma, legado). Un admin CON firma nunca debe
+        // llegar aquí (listarMiFirma lo desvía a su firma), pero si lo
+        // hiciera, se le devuelve solo su firma, nunca todas.
+        if (!contextoSeguridad.esSuperAdmin()) {
+            Optional<Integer> firmaPropia = contextoSeguridad.idFirmaAutenticada();
+            if (firmaPropia.isPresent()) {
+                return listarFirma(firmaPropia.get(), page, size);
+            }
+        }
         return clienteMapper.toResponseList(
                 clienteRepository.findAllActivos(Paginacion.crear(page, size)));
     }

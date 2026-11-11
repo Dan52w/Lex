@@ -32,6 +32,12 @@ public record PersonaRequestDTO(
         String telefono,
         @NotNull(message = "La persona debe tener una fecha de nacimiento")
         @Past(message = "La fecha de nacimiento debe ser una fecha pasada")
-        LocalDate fechaNacimiento
+        LocalDate fechaNacimiento,
+        // V5: firma a la que pertenece la persona (personas.id_firma).
+        // Opcional: si viene null, el servicio la deriva (admin de firma ->
+        // su propia firma; súper admin -> null, sin firma). El mapper NO la
+        // copia a la entidad: solo el servicio la fija, tras validar el
+        // alcance. La firma SISTEMA se veta en el servicio.
+        Integer idFirma
 ) {
 }

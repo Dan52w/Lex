@@ -1,6 +1,7 @@
 package com.example.lexcloud.service;
 
 import com.example.lexcloud.dto.request.FirmaRequestDTO;
+import com.example.lexcloud.dto.response.AdministradorFirmaResponseDTO;
 import com.example.lexcloud.dto.response.FirmaResponseDTO;
 
 import java.util.List;
@@ -16,4 +17,7 @@ public interface FirmaService {
     Optional<FirmaResponseDTO> buscarPorNit(String nit);
     Optional<FirmaResponseDTO> buscarPorId(Integer id);
     FirmaResponseDTO actualizar(Integer id, FirmaRequestDTO request);
+    // V5: administradores de una firma (solo súper admin). Personas con rol
+    // ADMINISTRADOR cuya firma es personas.id_firma = id o la de su abogado.
+    List<AdministradorFirmaResponseDTO> listarAdministradoresPorFirma(Integer idFirma, int page, int size);
 }

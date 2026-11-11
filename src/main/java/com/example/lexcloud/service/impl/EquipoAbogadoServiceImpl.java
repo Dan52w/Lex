@@ -71,8 +71,10 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
                 .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
 
         // 2b. La asignación se crea en la firma del abogado: quien crea debe
-        // pertenecer a esa firma. (La persona asignada no se puede verificar por
-        // firma: el modelo no guarda la firma en Persona, solo en Abogado.)
+        // pertenecer a esa firma (verificarAccesoAAbogado: el súper admin
+        // accede a cualquier abogado; el resto, solo a los de su firma).
+        // V5: la persona asignada también tiene firma (personas.id_firma),
+        // pero la asignación se acota por la firma del abogado, como antes.
         contextoSeguridad.verificarAccesoAAbogado(abogado);
 
         // M20: estado y coherencia de la asignación.

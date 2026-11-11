@@ -104,14 +104,22 @@ public class AbogadoServiceImpl implements AbogadoService {
         // A3: el catch distingue el duplicado real (carrera entre dos
         // peticiones) de cualquier otra violación de integridad, que se
         // re-lanza encadenando la causa en vez de tragársela.
+        Abogado guardado;
         try {
-            return abogadoMapper.toResponse(abogadoRepository.save(abogado));
+            guardado = abogadoRepository.save(abogado);
         } catch (DataIntegrityViolationException ex) {
             if (abogadoRepository.findByPersonaId(request.idPersona()).isPresent()) {
                 throw new IllegalStateException("La persona ya tiene un registro de abogado.");
             }
             throw new IllegalStateException("No se pudo guardar el abogado. Verifique los datos e intente nuevamente.", ex);
         }
+        // V5: al crear un abogado, personas.id_firma queda igual a la
+        // firma del abogado (ambas fuentes sincronizadas: la resolución
+        // de firma usa el abogado primero y personas.id_firma después).
+        // Fuera del try de arriba: un fallo aquí no es un duplicado.
+        persona.setIdFirma(idFirma);
+        personaRepository.save(persona);
+        return abogadoMapper.toResponse(guardado);
     }
 
     @Override
@@ -141,6 +149,9 @@ public class AbogadoServiceImpl implements AbogadoService {
             return abogadoMapper.toResponseList(
                     abogadoRepository.findByAbogadosByFirmaActivos(firmaPropia.get(), Paginacion.crear(page, size)));
         }
+        // V5: sin firma resoluble solo llegan el súper admin (global) y el
+        // admin bootstrap (legado). Un admin de firma siempre tiene firma
+        // resoluble (abogado o personas.id_firma) y nunca cae aquí.
         return abogadoMapper.toResponseList(
                 abogadoRepository.findAllActivos(Paginacion.crear(page, size)));
     }
@@ -249,8 +260,9 @@ public class AbogadoServiceImpl implements AbogadoService {
         oldAbogado.setTarjeta_Profesional(tarjeta);
 
         // 3. Guardamos y mapeamos a respuesta (A3: mismo catch que en guardar).
+        Abogado actualizado;
         try {
-            return abogadoMapper.toResponse(abogadoRepository.save(oldAbogado));
+            actualizado = abogadoRepository.save(oldAbogado);
         } catch (DataIntegrityViolationException ex) {
             if (abogadoRepository.findByPersonaId(request.idPersona())
                     .filter(otro -> !otro.getId().equals(id)).isPresent()) {
@@ -258,6 +270,13 @@ public class AbogadoServiceImpl implements AbogadoService {
             }
             throw new IllegalStateException("No se pudo actualizar el abogado. Verifique los datos e intente nuevamente.", ex);
         }
+        // V5: igual que en guardar, la persona destino queda con
+        // personas.id_firma = firma del abogado. La persona ANTERIOR
+        // (si cambió) conserva su id_firma: puede seguir perteneciendo
+        // a esa firma por otros motivos y el abogado ya no la resuelve.
+        personaDestino.setIdFirma(request.idFirma());
+        personaRepository.save(personaDestino);
+        return abogadoMapper.toResponse(actualizado);
     }
 
     @Override
@@ -315,10 +334,14 @@ public class AbogadoServiceImpl implements AbogadoService {
     /**
      * S2: un abogado de otra firma no existe para quien consulta (se devuelve
      * vacío, como hace ClienteService.buscarPorId). C4 (fail-closed): si la
-     * firma del usuario no se puede resolver (sin registro de abogado), la
-     * consulta se deniega; nunca se permite por no poder verificar.
+     * firma del usuario no se puede resolver (sin registro de abogado ni
+     * {@code personas.id_firma}), la consulta se deniega; nunca se permite
+     * por no poder verificar. V5: el súper admin ve cualquier abogado.
      */
     private boolean perteneceAFirmaAutenticada(Abogado abogado) {
+        if (contextoSeguridad.esSuperAdmin()) {
+            return true;
+        }
         return contextoSeguridad.idFirmaAutenticada()
                 .map(firmaId -> abogado.getFirma() != null
                         && firmaId.equals(abogado.getFirma().getId()))

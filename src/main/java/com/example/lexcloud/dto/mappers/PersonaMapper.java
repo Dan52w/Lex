@@ -16,6 +16,10 @@ public interface PersonaMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "rol", ignore = true)
+    // V5: idFirma NO la copia el mapper: solo PersonaServiceImpl la fija,
+    // tras validar el alcance (un admin de firma no puede asignar personas
+    // a otra firma pasando el id en el cuerpo).
+    @Mapping(target = "idFirma", ignore = true)
     Persona toEntity(PersonaRequestDTO request);
 
     List<PersonaResponseDTO> toResponseList(List<Persona> personas);

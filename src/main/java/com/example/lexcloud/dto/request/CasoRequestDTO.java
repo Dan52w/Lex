@@ -3,6 +3,7 @@ package com.example.lexcloud.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -15,6 +16,7 @@ public record CasoRequestDTO(
         @NotNull(message = "El caso debe estar asociado a un cliente")
         Integer idCliente,
         @NotBlank(message = "El caso debe tener un titulo")
+        @Size(max = 255, message = "El título no puede superar los 255 caracteres")
         String titulo,
         @NotBlank(message = "El caso debe tener una descripcion")
         String descripcion,

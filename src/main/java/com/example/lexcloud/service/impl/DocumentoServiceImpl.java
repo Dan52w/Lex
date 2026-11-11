@@ -66,7 +66,7 @@ public class DocumentoServiceImpl implements DocumentoService {
         if (direccionArchivo == null || direccionArchivo.isBlank()) {
             throw new IllegalArgumentException("La dirección del archivo es obligatoria.");
         }
-        if (pesoEnBytes < 0 || pesoEnBytes > FileStorageServiceImpl.TAMANIO_MAXIMO_BYTES) {
+        if (pesoEnBytes < 0 || pesoEnBytes > FileStorageService.TAMANIO_MAXIMO_BYTES) {
             throw new IllegalArgumentException("El tamaño del archivo no es válido.");
         }
 

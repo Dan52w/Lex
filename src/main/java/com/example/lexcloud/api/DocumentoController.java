@@ -8,7 +8,6 @@ import com.example.lexcloud.repositorios.TipoDocumento_Repository;
 import com.example.lexcloud.security.service.ContextoSeguridad;
 import com.example.lexcloud.service.DocumentoService;
 import com.example.lexcloud.service.FileStorageService;
-import com.example.lexcloud.service.impl.FileStorageServiceImpl;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -100,7 +99,8 @@ public class DocumentoController {
      */
     private void validarAntesDeSubir(DocumentoRequestDTO request, MultipartFile archivo) {
         // Extensión real, Content-Type y tamaño (máx 10 MB) del archivo.
-        FileStorageServiceImpl.validarArchivo(archivo);
+        // N10: por el bean inyectado (interfaz), no por la clase concreta.
+        fileStorageService.validarArchivo(archivo);
 
         // Acceso al caso (404 genérico si no existe o no hay acceso).
         contextoSeguridad.verificarAccesoACaso(request.idCaso());
@@ -128,7 +128,7 @@ public class DocumentoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentoResponseDTO> buscarPodId(@PathVariable Integer id) {
+    public ResponseEntity<DocumentoResponseDTO> buscarPorId(@PathVariable Integer id) {
         return ResponseEntity.ok(documentoService.buscarPorId(id));
     }
 

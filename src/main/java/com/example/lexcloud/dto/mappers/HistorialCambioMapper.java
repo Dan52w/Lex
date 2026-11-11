@@ -11,8 +11,12 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface HistorialCambioMapper {
     @Mapping(source = "caso.titulo", target = "tituloCaso")
+    // idCaso no tenía @Mapping: la entidad no tiene propiedad "idCaso"
+    // (tiene "caso"), así que MapStruct lo dejaba siempre en null.
+    @Mapping(source = "caso.id", target = "idCaso")
+    @Mapping(source = "persona.id", target = "idPersona")
     @Mapping(target = "nombrePersona",
-            expression = "java(historialCambio.getPersona().getNombre() + \" \" + historialCambio.getPersona().getApellido())")
+            expression = "java(historialCambio.getPersona() != null ? historialCambio.getPersona().getNombre() + \" \" + historialCambio.getPersona().getApellido() : null)")
     HistorialCambioResponseDTO toResponse(Historial_Cambio historialCambio);
 
     @Mapping(target = "id", ignore = true)

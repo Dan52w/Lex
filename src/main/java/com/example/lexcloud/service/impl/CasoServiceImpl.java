@@ -85,10 +85,10 @@ public class CasoServiceImpl implements CasoService {
     @Transactional
     public CasoResponseDTO guardar(CasoRequestDTO request) {
         Validaciones.requerirNoNulo(request, "request");
-        // P0-B2: idFirma opcional; si no viene, se deriva del token. Sin
-        // firma resoluble la creación se rechaza con 400 claro.
-        Integer idFirma = request.idFirma() != null ? request.idFirma()
-                : contextoSeguridad.idFirmaAutenticada().orElse(null);
+        // P0-B2 + N11: idFirma opcional, resuelta por el método central
+        // (explícita > token). Sin firma resoluble la creación se rechaza
+        // con 400 claro.
+        Integer idFirma = contextoSeguridad.resolverIdFirmaEfectiva(request.idFirma());
         if (idFirma == null) {
             throw new IllegalArgumentException("No tienes una firma asignada; selecciona una firma");
         }
@@ -149,6 +149,11 @@ public class CasoServiceImpl implements CasoService {
 
         caso.setFirma(firmaRepository.findById(idFirma)
                 .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado")));
+        // N6: la firma del sistema no admite casos (es la firma contenedor
+        // del caso raíz, no una firma operativa).
+        if (contextoSeguridad.esFirmaSistema(caso.getFirma())) {
+            throw new IllegalArgumentException("La firma del sistema no admite casos.");
+        }
 
         // C5 + M11: radicados desde la secuencia, ANTES del primer insert y
         // con UN solo save. El DTO no trae radicado interno (el mapper lo
@@ -256,6 +261,13 @@ public class CasoServiceImpl implements CasoService {
                     && (oldCaso.getEstado() == null || !request.idEstado().equals(oldCaso.getEstado().getId()))) {
                 throw new IllegalArgumentException("No se puede cambiar el estado de un caso en estado terminal.");
             }
+            // N7: entrar a un estado terminal (TERMINADO/CERRADO/FINALIZADO/
+            // ARCHIVADO) solo lo hace un admin o el Principal autorizado del
+            // caso. Mismo estado = no-op permitido (no exige guarda).
+            if (esTerminal(nuevoEstado)
+                    && (oldCaso.getEstado() == null || !request.idEstado().equals(oldCaso.getEstado().getId()))) {
+                contextoSeguridad.exigirAdminOPrincipalAutorizado(id);
+            }
             oldCaso.setEstado(nuevoEstado);
         }
 
@@ -340,9 +352,12 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> listarCasosAutorizadosPorAbogadoYCliente(Integer idPersonaFirma, Integer idCliente, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersonaFirma);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: un admin CON firma usa la variante por firma; un admin SIN
+        // firma (bootstrap) cae a la variante por persona, nunca 403.
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.findCasosAutorizadosPorAbogadoYClienteYFirma(
-                    idPersonaFirma, idCliente, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    idPersonaFirma, idCliente, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.findCasosAutorizadosPorAbogadoYCliente(idPersonaFirma, idCliente, Paginacion.crear(page, size)));
     }
@@ -355,9 +370,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> listarPorTitulo(String titulo, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.buscarPorTituloParcialYFirma(
-                    BusquedaUtil.escaparLike(titulo), idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    BusquedaUtil.escaparLike(titulo), idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.buscarPorTituloParcial(BusquedaUtil.escaparLike(titulo), idPersona, Paginacion.crear(page, size)));
     }
@@ -378,9 +395,11 @@ public class CasoServiceImpl implements CasoService {
         if (estadoId == null) {
             return List.of();
         }
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.findByEstadoIdAndPersonaYFirma(
-                    estadoId, idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    estadoId, idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.findByEstadoIdAndPersona(estadoId, idPersona, Paginacion.crear(page, size)));
     }
@@ -393,9 +412,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> listarPorSubtipo(Integer idSubtipo, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.findBySubtipoIdAndPersonaYFirma(
-                    idSubtipo, idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    idSubtipo, idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.findBySubtipoIdAndPersona(idSubtipo, idPersona, Paginacion.crear(page, size)));
     }
@@ -408,9 +429,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> listarPorSubtipoAndEstado(Integer idSubtipo, Integer idEstado, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.findByEstadoAndSubtipoAndPersonaYFirma(
-                    idPersona, idEstado, idSubtipo, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    idPersona, idEstado, idSubtipo, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.findByEstadoAndSubtipoAndPersona(idPersona, idEstado, idSubtipo, Paginacion.crear(page, size)));
     }
@@ -450,9 +473,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> superBuscador(String termino, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.superBuscadorYFirma(
-                    BusquedaUtil.escaparLike(termino), idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    BusquedaUtil.escaparLike(termino), idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.superBuscador(BusquedaUtil.escaparLike(termino), idPersona, Paginacion.crear(page, size)));
     }
@@ -465,9 +490,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> listarPorCliente(Integer idCliente, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.findByClienteIdAndPersonaYFirma(
-                    idCliente, idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    idCliente, idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.findByClienteIdAndPersona(idCliente, idPersona, Paginacion.crear(page, size)));
     }
@@ -480,9 +507,11 @@ public class CasoServiceImpl implements CasoService {
     @Override
     public List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
-        if (contextoSeguridad.esAdmin()) {
+        // N4: admin sin firma → variante por persona (nunca 403).
+        Optional<Integer> firmaAdmin = contextoSeguridad.idFirmaAutenticada();
+        if (contextoSeguridad.esAdmin() && firmaAdmin.isPresent()) {
             return aResponse(casoRepository.buscarPorClienteNombreOIdentificacionYFirma(
-                    BusquedaUtil.escaparLike(termino), idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+                    BusquedaUtil.escaparLike(termino), idPersona, firmaAdmin.get(), Paginacion.crear(page, size)));
         }
         return aResponse(casoRepository.buscarPorClienteNombreOIdentificacion(BusquedaUtil.escaparLike(termino), idPersona, Paginacion.crear(page, size)));
     }
@@ -502,6 +531,9 @@ public class CasoServiceImpl implements CasoService {
         Validaciones.requerirId(id, "id");
         // M25: verificarAccesoACaso ya rechaza el caso raíz.
         contextoSeguridad.verificarAccesoACaso(id);
+        // N7: desactivar un caso solo lo hace un admin o su Principal
+        // autorizado (un miembro con vínculo no-Principal ya no puede).
+        contextoSeguridad.exigirAdminOPrincipalAutorizado(id);
 
         Caso caso = casoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));

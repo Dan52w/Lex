@@ -4,11 +4,12 @@ import com.example.lexcloud.dto.request.LoginRequestDTO;
 import com.example.lexcloud.dto.request.RegisterRequestDTO;
 import com.example.lexcloud.dto.response.AuthResponseDTO;
 import com.example.lexcloud.dto.response.MeResponseDTO;
-import com.example.lexcloud.repositorios.Abogado_Repository;
 import com.example.lexcloud.security.jwt.JwtUtil;
+import com.example.lexcloud.security.service.ContextoSeguridad;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,16 +25,16 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final AuthService authService;
-    private final Abogado_Repository abogadoRepository;
+    private final ContextoSeguridad contextoSeguridad;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           AuthService authService,
-                          Abogado_Repository abogadoRepository) {
+                          ContextoSeguridad contextoSeguridad) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.authService = authService;
-        this.abogadoRepository = abogadoRepository;
+        this.contextoSeguridad = contextoSeguridad;
     }
 
     @PostMapping("/login")
@@ -71,7 +72,8 @@ public class AuthController {
     public ResponseEntity<?> registerUser(
             @Valid @RequestBody RegisterRequestDTO registerRequest) {
         authService.registrar(registerRequest);
-        return ResponseEntity.ok("Usuario registrado exitosamente");
+        // Crea un recurso (credenciales): 201, no 200.
+        return ResponseEntity.status(HttpStatus.CREATED).body("Usuario registrado exitosamente");
     }
 
     @PostMapping("/logout")
@@ -91,21 +93,24 @@ public class AuthController {
     @GetMapping("/me")
     @Transactional(readOnly = true)
     public ResponseEntity<MeResponseDTO> me(Authentication authentication) {
+        // Defensa: la ruta exige autenticación (WebSecurityConfig), pero si
+        // alguna vez llega sin principal válido, 401 — nunca un NPE (500).
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl userDetails)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         // El endpoint exige autenticación (ver WebSecurityConfig), así que
         // el principal es siempre el UserDetailsImpl del token Bearer.
         // El front lo usa como guarda de ruta del dashboard y para mostrar
         // nombre/rol (ver src/lib/session.ts): sin /me válido el dashboard
         // no se renderiza.
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        // (userDetails ya extraído en la guarda de arriba.)
 
         // idFirma: la firma del abogado vinculado a esta persona, solo si
-        // el vínculo está activo (A5). Un admin sin registro de abogado
-        // (p. ej. el primer usuario) no tiene firma: null, y el front lo
-        // tolera (normalizeMe lo convierte en null).
-        Integer idFirma = abogadoRepository.findByPersonaId(userDetails.getId())
-                .filter(a -> Boolean.TRUE.equals(a.getActivo()))
-                .map(a -> a.getFirma() != null ? a.getFirma().getId() : null)
-                .orElse(null);
+        // el vínculo está activo (A5/N3: el filtro de activo vive en
+        // ContextoSeguridad.idFirmaAutenticada). Un admin sin registro de
+        // abogado (p. ej. el primer usuario) no tiene firma: null, y el
+        // front lo tolera (normalizeMe lo convierte en null).
+        Integer idFirma = contextoSeguridad.idFirmaAutenticada().orElse(null);
 
         return ResponseEntity.ok(new MeResponseDTO(
                 userDetails.getId(),

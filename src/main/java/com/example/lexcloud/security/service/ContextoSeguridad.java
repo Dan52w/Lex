@@ -32,6 +32,10 @@ import java.util.Optional;
  *       puede quedar desactualizado si el rol cambia tras el login.</li>
  *   <li>El administrador es un rol <b>por firma</b>: puede ver cualquier caso
  *       de <i>su</i> firma sin vínculo, pero nunca datos de otra firma.</li>
+ *   <li>Excepción bootstrap: un administrador SIN registro de abogado (p. ej.
+ *       el primer usuario) no tiene firma propia; opera en <b>cualquier</b>
+ *       firma existente salvo la del sistema. En cuanto tenga registro de
+ *       abogado, queda acotado a su firma como cualquier admin.</li>
  *   <li>Una persona sin registro de abogado no tiene firma resoluble: los
  *       métodos que exigen firma deniegan en ese caso (fail-closed), salvo
  *       {@link #verificarAccesoACaso(Integer)}, donde el acceso también se
@@ -107,10 +111,15 @@ public class ContextoSeguridad {
 
     /**
      * Id de la firma del usuario autenticado, resuelto por su registro de abogado.
-     * Vacío si la persona no tiene registro de abogado (personal sin firma resoluble).
+     * Vacío si la persona no tiene registro de abogado activo (personal sin
+     * firma resoluble, o abogado desactivado).
      */
     public Optional<Integer> idFirmaAutenticada() {
-        return abogadoRepository.findByPersonaId(idPersonaAutenticada())
+        // N3: solo un registro de abogado ACTIVO resuelve firma. Un abogado
+        // desactivado pierde el acceso por firma (la revocación del A5);
+        // findByPersonaId (sin filtro) se conserva solo para el chequeo de
+        // duplicado en AbogadoServiceImpl.
+        return abogadoRepository.findByPersonaIdActivo(idPersonaAutenticada())
                 .map(abogado -> abogado.getFirma().getId());
     }
 
@@ -140,18 +149,62 @@ public class ContextoSeguridad {
 
     /**
      * Exige que la firma consultada sea la del usuario autenticado.
-     * Fail-closed: si la firma del usuario no se puede resolver (sin registro
-     * de abogado), la operación se deniega; nunca se permite por no poder
-     * verificar.
+     * <ul>
+     *   <li>Administrador SIN firma resoluble (bootstrap): puede operar en
+     *       cualquier firma existente; sin esta excepción toda creación con
+     *       idFirma explícita le fallaba con 403 aunque el front la enviara.</li>
+     *   <li>Administrador CON firma: solo su propia firma, como cualquier
+     *       usuario (el bypass global anterior contradecía el modelo por
+     *       firma y dejaba ver datos de otras firmas).</li>
+     *   <li>No-admin: solo su propia firma. Fail-closed: si la firma del
+     *       usuario no se puede resolver (sin registro de abogado), la
+     *       operación se deniega; nunca se permite por no poder
+     *       verificar.</li>
+     * </ul>
      */
     public void verificarMismaFirma(Integer idFirma) {
         if (idFirma == null) {
             throw new IllegalArgumentException("Debe indicar la firma.");
         }
+        if (esAdmin() && idFirmaAutenticada().isEmpty()) {
+            return;
+        }
         Integer propia = idFirmaAutenticadaRequerida();
         if (!propia.equals(idFirma)) {
             throw new SecurityException("No tiene permisos para consultar datos de otra firma.");
         }
+    }
+
+    /**
+     * Resuelve la firma efectiva para operaciones con idFirma opcional (P0-B2).
+     * Precedencia: la explícita, si viene; si no, la del token. Es la ÚNICA
+     * derivación de firma: los ternarios inline de los servicios se
+     * sustituyen por este método (N11).
+     * <ul>
+     *   <li>Explícita distinta de la propia (cuando hay firma resoluble) →
+     *       403: nadie opera en otra firma, ni siquiera un admin con firma.</li>
+     *   <li>Sin explícita y sin firma resoluble: admin (bootstrap) → null,
+     *       y el llamador interpreta null como "global" o rechaza con 400
+     *       según la operación; no-admin → 403.</li>
+     * </ul>
+     * Nunca devuelve una firma distinta de la del llamador, salvo para el
+     * admin bootstrap, que no tiene firma propia.
+     */
+    public Integer resolverIdFirmaEfectiva(Integer idFirmaExplicita) {
+        Optional<Integer> propia = idFirmaAutenticada();
+        if (idFirmaExplicita != null) {
+            if (propia.isPresent() && !propia.get().equals(idFirmaExplicita)) {
+                throw new SecurityException("No tiene permisos para operar en otra firma.");
+            }
+            return idFirmaExplicita;
+        }
+        if (propia.isPresent()) {
+            return propia.get();
+        }
+        if (esAdmin()) {
+            return null;
+        }
+        throw new SecurityException("No tienes una firma asignada; selecciona una firma");
     }
 
     /**
@@ -163,19 +216,27 @@ public class ContextoSeguridad {
      *       {@link EntityNotFoundException} con mensaje genérico, indistinguible
      *       de "no existe" (no revela la existencia del objetivo).</li>
      *   <li>Firma del usuario no resoluble (sin registro de abogado):
-     *       {@link SecurityException} genérica (fail-closed). Es una violación
-     *       del propio contexto del llamador y no revela nada del objetivo.</li>
+     *       {@link SecurityException} genérica (fail-closed), salvo admin
+     *       bootstrap (sin firma), que accede a cualquier abogado. Es una
+     *       violación del propio contexto del llamador y no revela nada del
+     *       objetivo.</li>
      * </ul>
      */
     public void verificarAccesoAAbogado(Abogado abogado) {
         if (abogado == null) {
             throw new EntityNotFoundException("Recurso no encontrado");
         }
-        Integer propia = idFirmaAutenticadaRequerida();
         boolean esPropio = abogado.getPersona() != null
                 && abogado.getPersona().getId().equals(idPersonaAutenticada());
-        if (!esPropio && (abogado.getFirma() == null
-                || !propia.equals(abogado.getFirma().getId()))) {
+        if (esPropio) {
+            return;
+        }
+        // Bootstrap: un admin sin firma resoluble accede a cualquier abogado.
+        if (esAdmin() && idFirmaAutenticada().isEmpty()) {
+            return;
+        }
+        Integer propia = idFirmaAutenticadaRequerida();
+        if (abogado.getFirma() == null || !propia.equals(abogado.getFirma().getId())) {
             throw new EntityNotFoundException("Recurso no encontrado");
         }
     }
@@ -199,11 +260,16 @@ public class ContextoSeguridad {
      * autenticado. Cliente inexistente ({@code null}), sin firma o de otra
      * firma: {@link EntityNotFoundException} con mensaje genérico,
      * indistinguible de "no existe". Firma del usuario no resoluble:
-     * {@link SecurityException} genérica (fail-closed).
+     * {@link SecurityException} genérica (fail-closed), salvo admin
+     * bootstrap (sin firma), que accede a cualquier cliente.
      */
     public void verificarAccesoACliente(Cliente cliente) {
         if (cliente == null) {
             throw new EntityNotFoundException("Recurso no encontrado");
+        }
+        // Bootstrap: un admin sin firma resoluble accede a cualquier cliente.
+        if (esAdmin() && idFirmaAutenticada().isEmpty()) {
+            return;
         }
         Integer propia = idFirmaAutenticadaRequerida();
         if (cliente.getFirma() == null || !propia.equals(cliente.getFirma().getId())) {
@@ -232,6 +298,11 @@ public class ContextoSeguridad {
         if (caso.getId() == 1) {
             throw new SecurityException("El caso raíz del sistema no admite esta operación.");
         }
+        // Bootstrap: un admin sin firma resoluble accede a cualquier caso
+        // (salvo el raíz, ya rechazado arriba).
+        if (esAdmin() && idFirmaAutenticada().isEmpty()) {
+            return;
+        }
         Optional<Integer> firma = idFirmaAutenticada();
         if (firma.isPresent() && caso.getFirma() != null
                 && firma.get().equals(caso.getFirma().getId())) {
@@ -242,6 +313,30 @@ public class ContextoSeguridad {
             return;
         }
         throw new EntityNotFoundException("Recurso no encontrado");
+    }
+
+    /**
+     * N7: solo un administrador o el abogado Principal autorizado del caso
+     * puede desactivar un caso o llevarlo a un estado terminal. Mismo
+     * criterio que VinculoCasoServiceImpl.exigirAdminOPrincipalAutorizado
+     * (no se reutiliza directamente para no crear dependencia entre
+     * servicios).
+     */
+    public void exigirAdminOPrincipalAutorizado(Integer idCaso) {
+        if (esAdmin()) {
+            return;
+        }
+        Integer yo = idPersonaAutenticada();
+        boolean soyPrincipalAutorizado = vinculoCasoRepository
+                .findPrincipalesDelCaso(idCaso, EstadoVinculo.AUTORIZADO,
+                        VinculoCaso_Repository.VINCULO_PRINCIPAL)
+                .stream()
+                .anyMatch(p -> p.getPersonaFirma() != null
+                        && yo.equals(p.getPersonaFirma().getId()));
+        if (!soyPrincipalAutorizado) {
+            throw new SecurityException(
+                    "Solo un administrador o el abogado principal del caso puede realizar esta acción.");
+        }
     }
 
     /** Verdadero si la persona es la persona del sistema (null-safe). */

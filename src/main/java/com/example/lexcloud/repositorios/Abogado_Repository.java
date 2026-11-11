@@ -31,6 +31,14 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
     // Chequeo de duplicado: debe ver también los inactivos, sin filtro a.activo.
     Optional<Abogado> findByPersonaId(Integer personaId);
 
+    // N3: resolución de firma para el usuario autenticado (ver
+    // ContextoSeguridad.idFirmaAutenticada): solo un registro de abogado
+    // ACTIVO resuelve firma. Un abogado desactivado pierde el acceso por
+    // firma (la revocación del A5). findByPersonaId (sin filtro) se
+    // conserva solo para el chequeo de duplicado.
+    @Query("SELECT a FROM Abogado a WHERE a.persona.id = :personaId AND a.activo = true AND a.persona.activo = true")
+    Optional<Abogado> findByPersonaIdActivo(@Param("personaId") Integer personaId);
+
     // 3. Buscar por nombre completo dentro de una firma (Optimizado con JOIN FETCH)
     // ESCAPE '\': el nombre viene parametrizado, pero %, _ y \ dentro del nombre
     // seguirían actuando como comodines LIKE; el ESCAPE permite que el servicio

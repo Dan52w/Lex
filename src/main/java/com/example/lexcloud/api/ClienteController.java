@@ -90,11 +90,13 @@ public class ClienteController {
         return ResponseEntity.ok(clienteService.actualizar(id, idFirma, request));
     }
 
-    // 7. Borrado lógico (Desactivar cliente) validando firma propietaria
+    // 7. Borrado lógico (Desactivar cliente) validando firma propietaria.
+    // P0-B2 + pendiente #2 de controllers: idFirma opcional por query
+    // (antes requerido); el servicio lo resuelve por el método central.
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(
             @PathVariable Integer id,
-            @RequestParam Integer idFirma) {
+            @RequestParam(required = false) Integer idFirma) {
         clienteService.desactivarCliente(id, idFirma);
         return ResponseEntity.noContent().build();
     }
@@ -102,10 +104,11 @@ public class ClienteController {
     // 8. Reactivar cliente (espejo del desactivar: mismo idFirma por query).
     // El desactivar es DELETE /{id}; no hay PATCH /desactivar que espejear,
     // así que se usa PATCH /{id}/reactivar (ver CasoController).
+    // P0-B2 + pendiente #2 de controllers: idFirma opcional por query.
     @PatchMapping("/{id}/reactivar")
     public ResponseEntity<Void> reactivar(
             @PathVariable Integer id,
-            @RequestParam Integer idFirma) {
+            @RequestParam(required = false) Integer idFirma) {
         clienteService.reactivarCliente(id, idFirma);
         return ResponseEntity.noContent().build();
     }

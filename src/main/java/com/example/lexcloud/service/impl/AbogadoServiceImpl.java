@@ -54,11 +54,14 @@ public class AbogadoServiceImpl implements AbogadoService {
     @Transactional
     public AbogadoResponseDTO guardar(AbogadoRequestDTO request) {
         Validaciones.requerirNoNulo(request, "request");
+        // N5: crear abogados es solo admin (antes cualquier miembro podía
+        // crear un registro de abogado para cualquier persona).
+        exigirAdmin();
         Validaciones.requerirId(request.idPersona(), "idPersona");
-        // P0-B2: idFirma opcional; si no viene, se deriva del token. Sin
-        // firma resoluble la creación se rechaza con 400 claro.
-        Integer idFirma = request.idFirma() != null ? request.idFirma()
-                : contextoSeguridad.idFirmaAutenticada().orElse(null);
+        // P0-B2 + N11: idFirma opcional, resuelta por el método central
+        // (explícita > token). Sin firma resoluble la creación se rechaza
+        // con 400 claro.
+        Integer idFirma = contextoSeguridad.resolverIdFirmaEfectiva(request.idFirma());
         if (idFirma == null) {
             throw new IllegalArgumentException("No tienes una firma asignada; selecciona una firma");
         }
@@ -88,6 +91,11 @@ public class AbogadoServiceImpl implements AbogadoService {
         // ... setear firma y tipo abogado ...
         abogado.setFirma(firmaRepository.findById(idFirma)
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
+        // N6: la firma del sistema no admite abogados (es la firma
+        // contenedor del caso raíz, no una firma operativa).
+        if (contextoSeguridad.esFirmaSistema(abogado.getFirma())) {
+            throw new IllegalArgumentException("La firma del sistema no admite abogados.");
+        }
         abogado.setTipo_Abogado(tipoAbogadoRepository.findById(request.idTipoAbogado())
                 .orElseThrow(() -> new EntityNotFoundException("Especialización no encontrada")));
         abogado.setActivo(true);
@@ -123,9 +131,15 @@ public class AbogadoServiceImpl implements AbogadoService {
 
     @Override
     public List<AbogadoResponseDTO> listarTodosActivos(int page, int size) {
-        // P0-B2: listado base para la vista /equipo del admin. Solo admin.
+        // P0-B2 + N2: listado base para la vista /equipo del admin. Solo
+        // admin: CON firma ve solo su firma; SIN firma (bootstrap) ve todas.
         if (!contextoSeguridad.esAdmin()) {
             throw new SecurityException("Solo un administrador puede listar los abogados de todas las firmas.");
+        }
+        Optional<Integer> firmaPropia = contextoSeguridad.idFirmaAutenticada();
+        if (firmaPropia.isPresent()) {
+            return abogadoMapper.toResponseList(
+                    abogadoRepository.findByAbogadosByFirmaActivos(firmaPropia.get(), Paginacion.crear(page, size)));
         }
         return abogadoMapper.toResponseList(
                 abogadoRepository.findAllActivos(Paginacion.crear(page, size)));
@@ -186,6 +200,8 @@ public class AbogadoServiceImpl implements AbogadoService {
     public AbogadoResponseDTO actualizar(Integer id, AbogadoRequestDTO request) {
         Validaciones.requerirId(id, "id");
         Validaciones.requerirNoNulo(request, "request");
+        // N5: actualizar abogados es solo admin.
+        exigirAdmin();
         Validaciones.requerirId(request.idPersona(), "idPersona");
         Validaciones.requerirId(request.idFirma(), "idFirma");
         Validaciones.requerirId(request.idTipoAbogado(), "idTipoAbogado");
@@ -248,6 +264,8 @@ public class AbogadoServiceImpl implements AbogadoService {
     @Transactional
     public void desactivarAbogado(Integer idAbogado) {
         Validaciones.requerirId(idAbogado, "idAbogado");
+        // N5: desactivar abogados es solo admin.
+        exigirAdmin();
         // A5: findById sin filtro de activo — un abogado ya inactivo debe
         // encontrarse igual (la operación es idempotente); las consultas de
         // listado filtran por activo y no servirían para localizarlo.
@@ -282,6 +300,16 @@ public class AbogadoServiceImpl implements AbogadoService {
         // activa) hasta que la persona se reactive en PersonaService.
         abogado.setActivo(true);
         abogadoRepository.save(abogado);
+    }
+
+    /**
+     * N5: crear, actualizar y desactivar abogados es solo admin (mismo
+     * patrón que FirmaServiceImpl.exigirAdmin). Reactivar ya lo exigía.
+     */
+    private void exigirAdmin() {
+        if (!contextoSeguridad.esAdmin()) {
+            throw new SecurityException("Solo un administrador puede realizar esta operación.");
+        }
     }
 
     /**

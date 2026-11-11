@@ -1,6 +1,6 @@
 package com.example.lexcloud.config;
 
-import com.example.lexcloud.service.impl.FileStorageServiceImpl;
+import com.example.lexcloud.service.FileStorageService;
 import jakarta.servlet.MultipartConfigElement;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
  * Límite multipart a nivel de contenedor (S8).
  *
  * <p>El tope de 10 MB ya existía en código
- * ({@link FileStorageServiceImpl#TAMANIO_MAXIMO_BYTES}), pero se ejecuta
+ * ({@link FileStorageService#TAMANIO_MAXIMO_BYTES}), pero se ejecuta
  * DESPUÉS de que Spring parsea el multipart completo: un archivo de
  * varios GB podía agotar disco/memoria antes de ser rechazado. Este bean
  * (que sustituye al de la autoconfiguración de Spring Boot) impone el
@@ -31,7 +31,7 @@ public class MultipartConfig {
     public MultipartConfigElement multipartConfigElement() {
         return new MultipartConfigElement(
                 "",
-                FileStorageServiceImpl.TAMANIO_MAXIMO_BYTES,
+                FileStorageService.TAMANIO_MAXIMO_BYTES,
                 TAMANIO_MAXIMO_PETICION_BYTES,
                 0);
     }

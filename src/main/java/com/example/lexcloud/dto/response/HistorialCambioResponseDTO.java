@@ -7,5 +7,6 @@ public record HistorialCambioResponseDTO(Integer id,
                                          String descripcion,
                                          Integer idCaso,
                                          String tituloCaso,
+                                         Integer idPersona,
                                          String nombrePersona) {
 }

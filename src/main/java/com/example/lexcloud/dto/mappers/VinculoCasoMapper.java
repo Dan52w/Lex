@@ -11,9 +11,14 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface VinculoCasoMapper {
     @Mapping(source = "personaFirma.id", target = "idPersona")
-    @Mapping(source = "personaFirma.nombre", target = "nombrePersona")
+    // Antes solo el primer nombre; ahora nombre + apellido como en el resto
+    // de mappers, con guarda de null.
+    @Mapping(target = "nombrePersona",
+            expression = "java(vinculoCaso.getPersonaFirma() != null ? vinculoCaso.getPersonaFirma().getNombre() + \" \" + vinculoCaso.getPersonaFirma().getApellido() : null)")
     @Mapping(source = "cliente.id", target = "idCliente")
-    @Mapping(source = "cliente.nombres", target = "nombreCliente")
+    // Antes solo "nombres"; ahora nombre completo del cliente.
+    @Mapping(target = "nombreCliente",
+            expression = "java(vinculoCaso.getCliente() != null ? (vinculoCaso.getCliente().getNombres() != null ? vinculoCaso.getCliente().getNombres() : \"\") + (vinculoCaso.getCliente().getPrimerApellido() != null ? \" \" + vinculoCaso.getCliente().getPrimerApellido() : \"\") + (vinculoCaso.getCliente().getSegundoApellido() != null ? \" \" + vinculoCaso.getCliente().getSegundoApellido() : \"\") : null)")
     @Mapping(source = "caso.id", target = "idCaso")
     @Mapping(source = "cliente.identificacion", target = "ccCliente")
     @Mapping(source = "caso.titulo", target = "tituloCaso")

@@ -9,8 +9,10 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record PersonaRequestDTO(
+        @Size(max = 150, message = "El nombre de la persona no debe superar los 150 caracteres")
         @NotBlank(message = "El nombre de la persona no puede ir vacio")
         String nombre,
+        @Size(max = 150, message = "El apellido de la persona no debe superar los 150 caracteres")
         @NotBlank(message = "El apellido de la persona no puede ir vacio")
         String apellido,
         // M30: @Min(5) sobre un String no medía longitud (medía valor numérico).

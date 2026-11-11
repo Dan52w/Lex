@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -70,12 +71,23 @@ public class FirmaServiceImpl implements FirmaService {
 
     @Override
     public List<FirmaResponseDTO> listarTodas(int page, int size) {
-        // P0-B2: listado base para el selector de firma del front. Solo
-        // admin. La entidad Firma no tiene flag de activo, así que "activas"
-        // son todas las firmas registradas.
+        // P0-B2 + N2/N6: listado base para el selector de firma del front.
+        // Solo admin. La entidad Firma no tiene flag de activo, así que
+        // "activas" son todas las firmas registradas, salvo la del sistema
+        // (nunca se ofrece como destino). El admin CON firma ve solo su
+        // firma; el admin SIN firma (bootstrap) ve todas las operativas.
         exigirAdmin();
+        Optional<Integer> firmaPropia = contextoSeguridad.idFirmaAutenticada();
+        if (firmaPropia.isPresent()) {
+            return firmaRepository.findById(firmaPropia.get())
+                    .map(firma -> List.of(firmaMapper.toResponse(firma)))
+                    .orElse(List.of());
+        }
         return firmaMapper.toResponseList(
-                firmaRepository.findAll(Paginacion.crear(page, size)).getContent());
+                firmaRepository.findAll(Paginacion.crear(page, size)).getContent()
+                        .stream()
+                        .filter(firma -> !contextoSeguridad.esFirmaSistema(firma))
+                        .collect(Collectors.toList()));
     }
 
     @Override
@@ -114,15 +126,16 @@ public class FirmaServiceImpl implements FirmaService {
 
     @Override
     public Optional<FirmaResponseDTO> buscarPorId(Integer id) {
-        // S7: filtro de firma (antes abierto a cualquier autenticado). El
-        // admin ve cualquier firma; un no-admin solo la suya; sin firma
-        // resoluble no se devuelve nada (indistinguible de "no existe").
-        if (contextoSeguridad.esAdmin()) {
+        // S7 + N2: filtro de firma (antes abierto a cualquier autenticado).
+        // El admin SIN firma (bootstrap) ve cualquier firma; el admin CON
+        // firma y el no-admin solo la suya; sin firma resoluble no se
+        // devuelve nada (indistinguible de "no existe").
+        Optional<Integer> firmaPropia = contextoSeguridad.idFirmaAutenticada();
+        if (firmaPropia.isEmpty() && contextoSeguridad.esAdmin()) {
             return firmaRepository.findById(id)
                     .map(firmaMapper::toResponse);
         }
-        Integer firmaPropia = contextoSeguridad.idFirmaAutenticada().orElse(null);
-        if (firmaPropia == null || !firmaPropia.equals(id)) {
+        if (firmaPropia.isEmpty() || !firmaPropia.get().equals(id)) {
             return Optional.empty();
         }
         return firmaRepository.findById(id)

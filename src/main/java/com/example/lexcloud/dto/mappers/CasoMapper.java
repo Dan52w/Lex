@@ -16,6 +16,8 @@ public interface CasoMapper {
     @Mapping(source = "estado.id", target = "idEstado")
     @Mapping(source = "subtipo_Caso.nombre", target = "subtipoNombre")
     @Mapping(source = "subtipo_Caso.id", target = "idSubtipo")
+    @Mapping(source = "firma.id", target = "idFirma")
+    @Mapping(source = "casoPadre.id", target = "idCasoPadre")
     CasoResponseDTO toResponse(Caso caso);
 
     // 2. De Request a Entidad (Entrada)

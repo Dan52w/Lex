@@ -8,5 +8,10 @@ public record AbogadoResponseDTO(Integer id,
                                  String telefono,
                                  String nombreFirma,
                                  String tipoAbogado,
-                                 String tarjeta_Profesional) {
+                                 Integer idTipoAbogado,
+                                 String tarjeta_Profesional,
+                                 // correo vive en Login (vía Persona.login);
+                                 // la página /equipo/[id] lo muestra.
+                                 String correo,
+                                 Boolean activo) {
 }

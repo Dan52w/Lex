@@ -6,7 +6,11 @@ public record PersonaResponseDTO(Integer id,
                                  String nombre,
                                  String apellido,
                                  String cc,
-                                 boolean activo,
+                                 // Boolean (no boolean): Persona.activo es
+                                 // anulable en BD; el primitivo haría NPE al
+                                 // desempaquetar un null en el mapper.
+                                 Boolean activo,
+                                 Integer idRol,
                                  String nombreRol,
                                  String telefono,
                                  // B6: la entidad Persona guarda LocalDate (fecha, sin hora);

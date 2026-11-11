@@ -12,14 +12,18 @@ import java.util.List;
 public interface AbogadoMapper {
 
     // Mapeo de Salida (Hacia el Frontend)
+    // nombrePersona con guarda de null: la expresión anterior hacía NPE si
+    // persona era null (MapStruct no protege las expressions).
     @Mapping(target = "nombrePersona",
-            expression = "java(abogado.getPersona().getNombre() + \" \" + abogado.getPersona().getApellido())")
+            expression = "java(abogado.getPersona() != null ? abogado.getPersona().getNombre() + \" \" + abogado.getPersona().getApellido() : null)")
     @Mapping(source = "persona.cc", target = "cedula") // Útil para mostrar en tablas
     @Mapping(source = "persona.id", target = "idPersona")
     @Mapping(source = "firma.id", target = "idFirma")
     @Mapping(source = "firma.nombre", target = "nombreFirma")
     @Mapping(source = "tipo_Abogado.nombre", target = "tipoAbogado")
+    @Mapping(source = "tipo_Abogado.id", target = "idTipoAbogado")
     @Mapping(source = "persona.telefono", target = "telefono")
+    @Mapping(source = "persona.login.correo", target = "correo")
     AbogadoResponseDTO toResponse(Abogado abogado);
 
     // Mapeo de Entrada (Desde el Formulario)

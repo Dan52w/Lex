@@ -93,11 +93,20 @@ public class RateLimitLoginFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /** Elimina las entradas sin intentos vigentes (evita crecimiento sin límite del mapa). */
+    /**
+     * Elimina las entradas sin intentos vigentes (evita crecimiento sin
+     * límite del mapa). N9: también purga los deques cuyas marcas ya
+     * expiraron (ventana 60 s): antes solo se borraban los vacíos, así que
+     * una IP con intentos viejos quedaba en el mapa para siempre.
+     */
     private void limpiarVacios() {
+        long ahora = System.currentTimeMillis();
         intentosPorIp.entrySet().removeIf(entrada -> {
             ArrayDeque<Long> intentos = entrada.getValue();
             synchronized (intentos) {
+                while (!intentos.isEmpty() && ahora - intentos.peekFirst() > VENTANA_MS) {
+                    intentos.pollFirst();
+                }
                 return intentos.isEmpty();
             }
         });

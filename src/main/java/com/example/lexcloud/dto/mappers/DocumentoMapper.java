@@ -12,6 +12,7 @@ import java.util.List;
 public interface DocumentoMapper {
     @Mapping(source = "caso.titulo", target = "tituloCaso")
     @Mapping(source = "tipo_Documento.nombre", target = "tipoDocumento")
+    @Mapping(source = "tipo_Documento.id", target = "idTipoDocumento")
     @Mapping(source = "caso.id", target = "id_Caso")
     DocumentoResponseDTO toResponse(Documento documento);
 

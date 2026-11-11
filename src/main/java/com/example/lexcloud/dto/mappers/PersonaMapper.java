@@ -11,6 +11,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface PersonaMapper {
     @Mapping(source = "rol.nombre", target = "nombreRol")
+    @Mapping(source = "rol.id", target = "idRol")
     PersonaResponseDTO toResponse(Persona persona);
 
     @Mapping(target = "id", ignore = true)

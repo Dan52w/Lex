@@ -15,6 +15,12 @@ public interface AgendaMapper {
     @Mapping(source = "tipo_Agenda.id", target = "idTipoAgenda")
     @Mapping(source = "caso.titulo",  target = "nombreCaso")
     @Mapping(source = "caso.id", target = "idCaso")
+    // El front (EditAgendaModal) lee data.idAbogado para reenviarlo en el
+    // PUT; sin este campo siempre resolvía 0 y el servicio rechazaba el id.
+    @Mapping(source = "abogado.id", target = "idAbogado")
+    @Mapping(expression = "java(agenda.getAbogado() != null && agenda.getAbogado().getPersona() != null ? "
+            + "agenda.getAbogado().getPersona().getNombre() + \" \" + agenda.getAbogado().getPersona().getApellido() : null)",
+            target = "nombreAbogado")
     AgendaResponseDTO toResponse(Agenda agenda);
 
     @Mapping(target = "id", ignore = true)

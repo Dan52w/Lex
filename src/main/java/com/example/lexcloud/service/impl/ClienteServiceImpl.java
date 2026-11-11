@@ -89,15 +89,14 @@ public class ClienteServiceImpl implements ClienteService {
     @Override
     @Transactional
     public ClienteResponseDTO guardar(ClienteRequestDTO request) {
-        // P0-B2: idFirma opcional; si no viene, se deriva del token. Sin
-        // firma resoluble la creación se rechaza con 400 claro.
-        Integer idFirma = request.idFirma() != null ? request.idFirma()
-                : contextoSeguridad.idFirmaAutenticada().orElse(null);
+        // P0-B2 + N11: idFirma opcional, resuelta por el método central
+        // (explícita > token). Sin firma resoluble la creación se rechaza
+        // con 400 claro.
+        Integer idFirma = contextoSeguridad.resolverIdFirmaEfectiva(request.idFirma());
         if (idFirma == null) {
             throw new IllegalArgumentException("No tienes una firma asignada; selecciona una firma");
         }
         validarRequest(request);
-        contextoSeguridad.verificarMismaFirma(idFirma);
 
         // 1. Validar que no exista un cliente activo con esa identificación en la misma firma
         clienteRepository.findByIdentificacionAndFirma(request.identificacion().trim(), idFirma)
@@ -117,6 +116,11 @@ public class ClienteServiceImpl implements ClienteService {
         // 3. Asignar relaciones obligatorias con existencia validada (W4: el
         // getReference anterior fallaba tarde, en el flush, con un 500).
         nuevoCliente.setFirma(referenciaO404(firmaRepository, idFirma, "Firma"));
+        // N6: la firma del sistema no admite clientes (es la firma
+        // contenedor del caso raíz, no una firma operativa).
+        if (contextoSeguridad.esFirmaSistema(nuevoCliente.getFirma())) {
+            throw new IllegalArgumentException("La firma del sistema no admite clientes.");
+        }
         nuevoCliente.setTipoCliente(referenciaO404(tipoClienteRepository, request.idTipoCliente(), "Tipo de cliente"));
 
         // 4. Asignar relaciones de caracterización opcionales
@@ -147,16 +151,19 @@ public class ClienteServiceImpl implements ClienteService {
 
     @Override
     public List<ClienteResponseDTO> listarMiFirma(int page, int size) {
-        // P0-B2: clientes de la firma del usuario autenticado. El admin ve
-        // TODOS los clientes activos (todas las firmas); un usuario sin
-        // firma resoluble ve lista vacía (no error: el dashboard y la vista
-        // de clientes la toleran como "sin clientes").
+        // P0-B2 + N2: clientes de la firma del usuario autenticado. El admin
+        // CON firma ve solo su firma; el admin SIN firma (bootstrap) ve
+        // TODOS los clientes activos; un usuario sin firma resoluble ve lista
+        // vacía (no error: el dashboard y la vista de clientes la toleran
+        // como "sin clientes").
+        Optional<Integer> firmaPropia = contextoSeguridad.idFirmaAutenticada();
+        if (firmaPropia.isPresent()) {
+            return listarFirma(firmaPropia.get(), page, size);
+        }
         if (contextoSeguridad.esAdmin()) {
             return listarTodosActivos(page, size);
         }
-        return contextoSeguridad.idFirmaAutenticada()
-                .map(firmaId -> listarFirma(firmaId, page, size))
-                .orElse(List.of());
+        return List.of();
     }
 
     @Override
@@ -166,25 +173,6 @@ public class ClienteServiceImpl implements ClienteService {
         }
         return clienteMapper.toResponseList(
                 clienteRepository.findAllActivos(Paginacion.crear(page, size)));
-    }
-
-    /**
-     * Resuelve la firma efectiva para las operaciones con idFirma opcional
-     * (P0-B2). Precedencia: parámetro de la URL, luego idFirma del cuerpo,
-     * luego la firma derivada del token. El admin no pasa por el check de
-     * firma: si no hay ninguna, devuelve null y el llamador usa la firma
-     * del propio recurso. Un no-admin sin firma resoluble recibe 403.
-     */
-    private Integer resolverIdFirma(Integer idFirmaParametro, Integer idFirmaCuerpo) {
-        Integer resuelta = idFirmaParametro != null ? idFirmaParametro : idFirmaCuerpo;
-        if (resuelta != null) {
-            return resuelta;
-        }
-        if (contextoSeguridad.esAdmin()) {
-            return null;
-        }
-        return contextoSeguridad.idFirmaAutenticada()
-                .orElseThrow(() -> new SecurityException("No tienes una firma asignada; selecciona una firma"));
     }
 
     @Override
@@ -202,15 +190,13 @@ public class ClienteServiceImpl implements ClienteService {
 
     @Override
     public Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma) {
-        // P0-B2: idFirma opcional (se deriva del token). Admin sin idFirma:
-        // búsqueda en cualquier firma; no-admin sin firma: 403.
-        Integer firmaEfectiva = resolverIdFirma(idFirma, null);
+        // P0-B2 + N11: idFirma opcional, resuelta por el método central.
+        // Solo el admin bootstrap (sin firma) llega a null y busca en
+        // cualquier firma; el resto ya viene acotado a su firma.
+        Integer firmaEfectiva = contextoSeguridad.resolverIdFirmaEfectiva(idFirma);
         if (firmaEfectiva == null) {
             return clienteRepository.findByIdentificacionActivo(identificacion == null ? null : identificacion.trim())
                     .map(clienteMapper::toResponse);
-        }
-        if (!contextoSeguridad.esAdmin()) {
-            contextoSeguridad.verificarMismaFirma(firmaEfectiva);
         }
         return clienteRepository.findByIdentificacionAndFirma(identificacion == null ? null : identificacion.trim(), firmaEfectiva)
                 .map(clienteMapper::toResponse);
@@ -218,16 +204,14 @@ public class ClienteServiceImpl implements ClienteService {
 
     @Override
     public Optional<ClienteResponseDTO> buscarPorId(Integer id, Integer idFirma) {
-        // P0-B2: idFirma opcional (se deriva del token). Admin sin idFirma:
-        // el cliente es de cualquier firma; no-admin sin firma: 403.
-        Integer firmaEfectiva = resolverIdFirma(idFirma, null);
+        // P0-B2 + N11: idFirma opcional, resuelta por el método central.
+        // Solo el admin bootstrap (sin firma) llega a null y busca en
+        // cualquier firma; el resto ya viene acotado a su firma.
+        Integer firmaEfectiva = contextoSeguridad.resolverIdFirmaEfectiva(idFirma);
         if (firmaEfectiva == null) {
             return clienteRepository.findById(id)
                     .filter(cliente -> Boolean.TRUE.equals(cliente.getActivo()))
                     .map(clienteMapper::toResponse);
-        }
-        if (!contextoSeguridad.esAdmin()) {
-            contextoSeguridad.verificarMismaFirma(firmaEfectiva);
         }
         return clienteRepository.findById(id)
                 .filter(cliente -> Boolean.TRUE.equals(cliente.getActivo())
@@ -240,17 +224,16 @@ public class ClienteServiceImpl implements ClienteService {
     public ClienteResponseDTO actualizar(Integer id, Integer idFirma, ClienteRequestDTO request) {
         Validaciones.requerirId(id, "id");
         validarRequest(request);
-        // P0-B2: idFirma opcional (URL, cuerpo o token). Admin sin ninguna:
-        // la firma efectiva es la del propio cliente.
-        Integer firmaEfectiva = resolverIdFirma(idFirma, request.idFirma());
+        // P0-B2 + N11: idFirma opcional (URL, cuerpo o token), resuelta por
+        // el método central. Admin sin ninguna: la firma efectiva es la del
+        // propio cliente.
+        Integer firmaExplicita = idFirma != null ? idFirma : request.idFirma();
+        Integer firmaEfectiva = contextoSeguridad.resolverIdFirmaEfectiva(firmaExplicita);
         // M4: el idFirma del DTO ya no se ignora en silencio. La firma de un
         // cliente es inmutable por actualización: si el DTO trae otra firma,
         // se rechaza (400) en vez de actualizar con la del parámetro.
         if (request.idFirma() != null && firmaEfectiva != null && !request.idFirma().equals(firmaEfectiva)) {
             throw new IllegalArgumentException("La firma del cliente no se puede cambiar.");
-        }
-        if (firmaEfectiva != null && !contextoSeguridad.esAdmin()) {
-            contextoSeguridad.verificarMismaFirma(firmaEfectiva);
         }
         Cliente clienteExistente = clienteRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
@@ -264,9 +247,8 @@ public class ClienteServiceImpl implements ClienteService {
             throw new SecurityException("No tiene permisos para modificar un cliente perteneciente a otra firma.");
         }
 
-        // M9: un cliente inactivo no se edita; primero se reactiva por la vía
-        // que corresponda (no existe reactivarCliente: la reactivación queda
-        // pendiente de decisión, ver informe del lote).
+        // M9: un cliente inactivo no se edita; primero se reactiva por
+        // reactivarCliente (solo admin).
         if (Boolean.FALSE.equals(clienteExistente.getActivo())) {
             throw new IllegalStateException("No se puede actualizar un cliente inactivo.");
         }
@@ -296,13 +278,15 @@ public class ClienteServiceImpl implements ClienteService {
     @Transactional
     public void desactivarCliente(Integer id, Integer idFirma) {
         Validaciones.requerirId(id, "id");
-        Validaciones.requerirId(idFirma, "idFirma");
-        contextoSeguridad.verificarMismaFirma(idFirma);
+        // P0-B2 + N11: idFirma opcional (antes requerida por query); se
+        // resuelve por el método central. Solo el admin bootstrap llega a
+        // null y puede desactivar en cualquier firma.
+        Integer firmaEfectiva = contextoSeguridad.resolverIdFirmaEfectiva(idFirma);
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
 
         // Validación crítica de seguridad para borrado lógico
-        if (!cliente.getFirma().getId().equals(idFirma)) {
+        if (firmaEfectiva != null && !cliente.getFirma().getId().equals(firmaEfectiva)) {
             throw new SecurityException("No tiene permisos para desactivar un cliente de otra firma.");
         }
 
@@ -314,16 +298,18 @@ public class ClienteServiceImpl implements ClienteService {
     @Transactional
     public void reactivarCliente(Integer id, Integer idFirma) {
         Validaciones.requerirId(id, "id");
-        Validaciones.requerirId(idFirma, "idFirma");
         // B3: reactivar es solo admin (desactivar lo puede hacer el abogado
         // de la firma; devolver un cliente de baja es decisión de gobierno).
         if (!contextoSeguridad.esAdmin()) {
             throw new SecurityException("No tiene permisos para reactivar un cliente.");
         }
-        contextoSeguridad.verificarMismaFirma(idFirma);
+        // P0-B2 + N11: idFirma opcional (antes requerida por query); se
+        // resuelve por el método central. Solo el admin bootstrap llega a
+        // null y puede reactivar en cualquier firma.
+        Integer firmaEfectiva = contextoSeguridad.resolverIdFirmaEfectiva(idFirma);
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
-        if (!cliente.getFirma().getId().equals(idFirma)) {
+        if (firmaEfectiva != null && !cliente.getFirma().getId().equals(firmaEfectiva)) {
             throw new SecurityException("No tiene permisos para reactivar un cliente de otra firma.");
         }
         cliente.setActivo(true);

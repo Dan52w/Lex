@@ -1,11 +1,13 @@
 package com.example.lexcloud.service.impl;
 
 import com.example.lexcloud.service.FileStorageService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,15 +27,6 @@ import java.util.UUID;
  */
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
-
-    /**
-     * Tamaño máximo de subida: 10 MB (C9). Se aplica EN CÓDIGO, nunca en
-     * properties. Es la ÚNICA definición del tope: el controlador y
-     * DocumentoServiceImpl reutilizan esta constante, y el bean
-     * {@code config.MultipartConfig} la reutiliza para el límite a nivel
-     * de contenedor (S8, antes del parseo del multipart).
-     */
-    public static final long TAMANIO_MAXIMO_BYTES = 10_485_760L;
 
     /** Extensiones permitidas (C9). Única definición; la reutilizan ambas capas. */
     public static final Set<String> EXTENSIONES_PERMITIDAS =
@@ -109,7 +102,8 @@ public class FileStorageServiceImpl implements FileStorageService {
      *
      * @throws IllegalArgumentException si el archivo no pasa alguna validación
      */
-    public static void validarArchivo(MultipartFile archivo) {
+    @Override
+    public void validarArchivo(MultipartFile archivo) {
         if (archivo == null) {
             throw new IllegalArgumentException("El archivo es obligatorio.");
         }
@@ -253,6 +247,12 @@ public class FileStorageServiceImpl implements FileStorageService {
                 throw new RuntimeException("No se pudo obtener el archivo. Status: " + response.getStatusCode());
             }
 
+        } catch (HttpClientErrorException.NotFound e) {
+            // Pendiente #3 de controllers: un documento cuyo archivo ya no
+            // está en Supabase responde 404, no 500. RestTemplate lanza
+            // NotFound antes de llegar a la rama no-2xx, así que este catch
+            // debe ir ANTES del genérico.
+            throw new EntityNotFoundException("Recurso no encontrado");
         } catch (Exception e) {
             throw new RuntimeException("Error al recuperar archivo de Supabase: " + e.getMessage());
         }

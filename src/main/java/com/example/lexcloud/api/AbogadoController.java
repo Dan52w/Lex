@@ -57,7 +57,7 @@ public class AbogadoController {
         return ResponseEntity.ok(abogadoService.listarTipo(idFirma, especialidad, page, size));
     }
 
-    @GetMapping("nombre/{idFirma}/{nombre}")
+    @GetMapping("/nombre/{idFirma}/{nombre}")
     public ResponseEntity<List<AbogadoResponseDTO>> listarNombre(@PathVariable Integer idFirma, @PathVariable String nombre,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {

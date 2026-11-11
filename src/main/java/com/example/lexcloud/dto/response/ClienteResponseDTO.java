@@ -18,7 +18,9 @@ public record ClienteResponseDTO(
         String correo,
         String telefonoMovil,
         LocalDate fechaNacimiento,
-        boolean activo,
+        // Boolean (no boolean): Cliente.activo es anulable en BD (H16);
+        // el primitivo haría NPE al desempaquetar un null en el mapper.
+        Boolean activo,
 
         // Ubicación y Contacto Detallado
         String lugarNacimiento,

@@ -1,6 +1,8 @@
 package com.example.lexcloud.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record AbogadoRequestDTO(
         @NotNull(message = "El ID de persona es obligatorio")
@@ -11,6 +13,9 @@ public record AbogadoRequestDTO(
         Integer idFirma,
         @NotNull(message = "El tipo de abogado es obligatorio")
         Integer idTipoAbogado,
-        @NotNull(message = "El abogado debe tener una tarjeta profesional")
+        // La columna no tiene length explícito (VARCHAR 255 por defecto);
+        // el servicio ya hace trim + requerirNoBlank, el DTO lo refleja.
+        @NotBlank(message = "El abogado debe tener una tarjeta profesional")
+        @Size(max = 255, message = "La tarjeta profesional no puede superar los 255 caracteres")
         String tarjeta_Profesional
 ) {}

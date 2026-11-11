@@ -7,5 +7,6 @@ public record DocumentoResponseDTO(Integer id,
                                    String direccion,
                                    String descripcion,
                                    String tipoDocumento,
+                                   Integer idTipoDocumento,
                                    Long tamanio) {
 }

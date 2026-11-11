@@ -232,8 +232,13 @@ public class AgendaServiceImpl implements AgendaService {
             oldAgenda.setDescripcion(request.descripcion());
         }
         if (request.fechaExp() != null) {
-            // A7: la nueva fecha también debe ser futura.
-            validarFechaFutura(request.fechaExp());
+            // A7 + P4/P10: la nueva fecha debe ser futura solo si CAMBIÓ.
+            // Sin este chequeo, editar solo la descripción de una agenda
+            // vencida daba 400 (el @Future del DTO se quitó por lo mismo:
+            // la regla vive aquí, no en el DTO).
+            if (!request.fechaExp().equals(oldAgenda.getFechaExp())) {
+                validarFechaFutura(request.fechaExp());
+            }
             oldAgenda.setFechaExp(request.fechaExp());
         }
         if (request.activa() != null) {

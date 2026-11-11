@@ -57,6 +57,24 @@ public class CasoController {
         return ResponseEntity.noContent().build();
     }
 
+    // P0-B2: mis casos (canónico del front): la persona es la del token,
+    // sin idPersona en la URL. Delega en listarPorPersona.
+    @GetMapping("/mis-casos")
+    public ResponseEntity<List<CasoResponseDTO>> listarMisCasos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarMisCasos(page, size));
+    }
+
+    // P0-B2: casos de un miembro de la firma. Solo admin o el propio
+    // abogado (la guarda vive en el servicio).
+    @GetMapping("/miembro/{idAbogado}")
+    public ResponseEntity<List<CasoResponseDTO>> listarPorMiembro(@PathVariable Integer idAbogado,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(casoService.listarPorMiembro(idAbogado, page, size));
+    }
+
     // Listar todos los casos vinculados y autorizados de una persona
     @GetMapping("/persona/{idPersona}")
     public ResponseEntity<List<CasoResponseDTO>> listarPorPersona(@PathVariable Integer idPersona,

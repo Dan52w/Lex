@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,7 @@ public class CasoServiceImpl implements CasoService {
     private final Estado_Repository estadoRepository;
     private final SubtipoCaso_Repository subtipoRepository;
     private final Persona_Repository personaRepository;
+    private final Abogado_Repository abogadoRepository;
     private final VinculoCaso_Repository vinculoCasoRepository;
     private final Vinculo_Repository vinculoRepository;
     private final Cliente_Repository clienteRepository;
@@ -55,6 +57,7 @@ public class CasoServiceImpl implements CasoService {
                            Estado_Repository estadoRepository,
                            SubtipoCaso_Repository subtipoRepository,
                            Persona_Repository personaRepository,
+                           Abogado_Repository abogadoRepository,
                            VinculoCaso_Repository vinculoCasoRepository,
                            HistorialCambio_Repository historialCambioRepository,
                            Vinculo_Repository vinculoRepository,
@@ -67,6 +70,7 @@ public class CasoServiceImpl implements CasoService {
         this.estadoRepository = estadoRepository;
         this.subtipoRepository = subtipoRepository;
         this.personaRepository = personaRepository;
+        this.abogadoRepository = abogadoRepository;
         this.vinculoCasoRepository = vinculoCasoRepository;
         this.historialCambioRepository = historialCambioRepository;
         this.vinculoRepository = vinculoRepository;
@@ -81,14 +85,20 @@ public class CasoServiceImpl implements CasoService {
     @Transactional
     public CasoResponseDTO guardar(CasoRequestDTO request) {
         Validaciones.requerirNoNulo(request, "request");
-        Validaciones.requerirId(request.idFirma(), "idFirma");
+        // P0-B2: idFirma opcional; si no viene, se deriva del token. Sin
+        // firma resoluble la creación se rechaza con 400 claro.
+        Integer idFirma = request.idFirma() != null ? request.idFirma()
+                : contextoSeguridad.idFirmaAutenticada().orElse(null);
+        if (idFirma == null) {
+            throw new IllegalArgumentException("No tienes una firma asignada; selecciona una firma");
+        }
         Validaciones.requerirId(request.idCliente(), "idCliente");
         Validaciones.requerirId(request.idSubtipo(), "idSubtipo");
         // idEstado puede venir null: sin estado indicado el caso nace
         // SIN DEFINIR (A4). idCasoPadre es opcional (null = caso raíz padre).
 
         // El caso se radica en la firma del usuario autenticado.
-        contextoSeguridad.verificarMismaFirma(request.idFirma());
+        contextoSeguridad.verificarMismaFirma(idFirma);
 
         // C6: el cliente se carga y se verifica ANTES del primer save.
         Cliente cliente = clienteRepository.findById(request.idCliente())
@@ -125,7 +135,7 @@ public class CasoServiceImpl implements CasoService {
             contextoSeguridad.verificarAccesoACaso(request.idCasoPadre());
             padre = casoRepository.findById(request.idCasoPadre())
                     .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
-            if (padre.getFirma() == null || !request.idFirma().equals(padre.getFirma().getId())) {
+            if (padre.getFirma() == null || !idFirma.equals(padre.getFirma().getId())) {
                 throw new EntityNotFoundException("Recurso no encontrado");
             }
             if (!Boolean.TRUE.equals(padre.getActivo())) {
@@ -137,7 +147,7 @@ public class CasoServiceImpl implements CasoService {
         }
         caso.setCasoPadre(padre);
 
-        caso.setFirma(firmaRepository.findById(request.idFirma())
+        caso.setFirma(firmaRepository.findById(idFirma)
                 .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado")));
 
         // C5 + M11: radicados desde la secuencia, ANTES del primer insert y
@@ -282,10 +292,44 @@ public class CasoServiceImpl implements CasoService {
     public List<CasoResponseDTO> listarVinculadosPersonaAutorizado(Integer idPersona, int page, int size) {
         contextoSeguridad.verificarMismaPersona(idPersona);
         if (contextoSeguridad.esAdmin()) {
-            return aResponse(casoRepository.findCasosAutorizadosPorPersonaYFirma(
-                    idPersona, contextoSeguridad.idFirmaAutenticadaRequerida(), Paginacion.crear(page, size)));
+            // La rama admin acota por firma; pero un admin SIN firma
+            // resoluble (p. ej. el bootstrap, sin registro de abogado) no
+            // puede acotarse: antes esto lanzaba 403 aquí y rompía
+            // /mis-casos y /miembro para ese admin. Sin firma se cae a la
+            // rama por persona (casos con vínculo autorizado de esa
+            // persona), nunca 403. No se cambia el comportamiento del
+            // admin CON firma.
+            Optional<Integer> idFirma = contextoSeguridad.idFirmaAutenticada();
+            if (idFirma.isPresent()) {
+                return aResponse(casoRepository.findCasosAutorizadosPorPersonaYFirma(
+                        idPersona, idFirma.get(), Paginacion.crear(page, size)));
+            }
         }
         return aResponse(casoRepository.findCasosAutorizadosPorPersona(idPersona, Paginacion.crear(page, size)));
+    }
+
+    @Override
+    public List<CasoResponseDTO> listarMisCasos(int page, int size) {
+        // P0-B2: la persona es la del token; delega en el listado por
+        // persona, que ya aplica verificarMismaPersona (pasa: es uno mismo).
+        return listarVinculadosPersonaAutorizado(contextoSeguridad.idPersonaAutenticada(), page, size);
+    }
+
+    @Override
+    public List<CasoResponseDTO> listarPorMiembro(Integer idAbogado, int page, int size) {
+        // P0-B2: casos de un miembro. Solo admin o el propio abogado: un
+        // compañero de firma NO puede listar los casos de otro miembro por
+        // esta vía (verificarAccesoAAbogadoPorId permitiría misma firma).
+        Validaciones.requerirId(idAbogado, "idAbogado");
+        Abogado abogado = abogadoRepository.findById(idAbogado)
+                .orElseThrow(() -> new EntityNotFoundException("Recurso no encontrado"));
+        Integer idPersonaMiembro = abogado.getPersona() != null ? abogado.getPersona().getId() : null;
+        if (idPersonaMiembro == null
+                || (!contextoSeguridad.esAdmin()
+                        && !idPersonaMiembro.equals(contextoSeguridad.idPersonaAutenticada()))) {
+            throw new SecurityException("No tiene permisos para consultar los casos de otro miembro.");
+        }
+        return listarVinculadosPersonaAutorizado(idPersonaMiembro, page, size);
     }
 
     @Override

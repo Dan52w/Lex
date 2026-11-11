@@ -82,4 +82,10 @@ public interface Abogado_Repository extends JpaRepository<Abogado, Integer> {
     @Query("SELECT a FROM Abogado a WHERE a.firma.id = :firmaId AND a.persona.activo = true AND a.activo = true " +
             "ORDER BY a.id")
     List<Abogado> findByAbogadosByFirmaActivos(@Param("firmaId") Integer firmaId, Pageable pageable);
+
+    // P0-B2: TODOS los abogados activos de TODAS las firmas (solo admin,
+    // ver AbogadoServiceImpl.listarTodosActivos). H7: ORDER BY a.id.
+    @Query("SELECT a FROM Abogado a WHERE a.persona.activo = true AND a.activo = true " +
+            "ORDER BY a.id")
+    List<Abogado> findAllActivos(Pageable pageable);
 }

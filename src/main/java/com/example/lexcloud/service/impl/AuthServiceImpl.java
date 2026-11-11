@@ -131,6 +131,18 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean existeCorreo(String correo) {
-        return loginRepository.existsByCorreo(correo);
+        // S6: oráculo de existencia por correo, cerrado con el mismo patrón
+        // que PersonaServiceImpl.existeCc (A12). Un admin ve el valor real;
+        // un no-admin solo obtiene true para su propio correo; cualquier
+        // otro correo (exista o no) responde false, sin filtrar nada.
+        if (correo == null) {
+            return false;
+        }
+        String normalizado = correo.trim().toLowerCase();
+        if (contextoSeguridad.esAdmin()) {
+            return loginRepository.existsByCorreo(normalizado);
+        }
+        String propio = contextoSeguridad.correoAutenticado();
+        return propio != null && normalizado.equals(propio.trim().toLowerCase());
     }
 }

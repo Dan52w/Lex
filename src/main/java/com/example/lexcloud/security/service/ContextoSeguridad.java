@@ -83,6 +83,15 @@ public class ContextoSeguridad {
         return principal.getNombreRol();
     }
 
+    /** Correo del usuario autenticado (el username del principal). */
+    public String correoAutenticado() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof UserDetailsImpl principal)) {
+            throw new SecurityException("No hay una sesión autenticada válida.");
+        }
+        return principal.getUsername();
+    }
+
     /**
      * Verdadero si el rol vigente de la persona autenticada tiene el flag
      * {@code es_admin}. Se resuelve contra la base de datos (no contra el

@@ -25,6 +25,15 @@ public class AbogadoController {
         return new ResponseEntity<>(abogadoService.guardar(request), HttpStatus.CREATED);
     }
 
+    // 1b. P0-B2: listado base de abogados activos (vista /equipo del admin).
+    // Solo admin (la guarda vive en el servicio).
+    @GetMapping
+    public ResponseEntity<List<AbogadoResponseDTO>> listarTodosActivos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(abogadoService.listarTodosActivos(page, size));
+    }
+
     // 2. Listar todos por Firma (Activos)
     @GetMapping("/firma/{idFirma}")
     public ResponseEntity<List<AbogadoResponseDTO>> listarPorFirma(@PathVariable Integer idFirma,

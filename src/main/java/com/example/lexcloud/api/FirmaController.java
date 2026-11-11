@@ -26,6 +26,15 @@ public class FirmaController {
         return new ResponseEntity<>(firmaService.guardar(request), HttpStatus.CREATED);
     }
 
+    // 1b. P0-B2: listado base de firmas (selector de firma del front).
+    // Solo admin (la guarda vive en el servicio).
+    @GetMapping
+    public ResponseEntity<List<FirmaResponseDTO>> listarTodas(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(firmaService.listarTodas(page, size));
+    }
+
     // 2. Buscar una firma por su NIT (Útil para login o validaciones)
     @GetMapping("/nit/{nit}")
     public ResponseEntity<FirmaResponseDTO> buscarPorNit(@PathVariable String nit) {

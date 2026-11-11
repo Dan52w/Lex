@@ -41,6 +41,13 @@ public class WebSecurityConfig {
         return new AuthTokenFilter(jwtUtil, userDetailsService);
     }
 
+    // S3 — límite de intentos en el login (10/minuto por IP → 429).
+    // Filtro propio, registrado antes del filtro JWT en la cadena.
+    @Bean
+    public RateLimitLoginFilter rateLimitLoginFilter() {
+        return new RateLimitLoginFilter();
+    }
+
     @Bean
     public DaoAuthenticationProvider authenticationProvider(UserDetailsService userDetailsService) {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
@@ -69,14 +76,19 @@ public class WebSecurityConfig {
                 "https://lex-cloud.vercel.app"
         ));
 
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // S5 — PATCH: los 8 endpoints PATCH (reactivar, autorizar,
+        // desautorizar, rechazar, desactivar) fallaban el preflight del
+        // navegador porque no estaba en los métodos permitidos.
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowCredentials(true);
 
         // Permitimos todos los headers necesarios para JWT
         config.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "Accept"));
 
-        // Exponemos el header Authorization por si decides enviarlo por ahí
-        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
+        // Exponemos el header Authorization por si decides enviarlo por ahí.
+        // S5: se quitó "Set-Cookie": con Bearer-only (C10) el servidor ya no
+        // crea ninguna cookie, era un residuo.
+        config.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -86,6 +98,7 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            AuthTokenFilter authTokenFilter,
+                                           RateLimitLoginFilter rateLimitLoginFilter,
                                            DaoAuthenticationProvider authProvider) throws Exception {
         http
                 // CSRF desactivado porque con Bearer-only no hay cookie de
@@ -116,6 +129,9 @@ public class WebSecurityConfig {
                 );
 
         http.authenticationProvider(authProvider);
+        // S3: el límite de login corre antes que el filtro JWT (el login no
+        // lleva token) y solo actúa sobre POST /api/auth/login.
+        http.addFilterBefore(rateLimitLoginFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

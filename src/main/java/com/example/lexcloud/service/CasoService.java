@@ -41,6 +41,14 @@ public interface CasoService {
     List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona);
     List<CasoResponseDTO> buscarPorNombreOIdentificacionCliente(String termino, Integer idPersona, int page, int size);
 
+    // P0-B2: casos del usuario autenticado (idPersona del token).
+    // Delega en listarVinculadosPersonaAutorizado.
+    List<CasoResponseDTO> listarMisCasos(int page, int size);
+
+    // P0-B2: casos de un miembro de la firma. Solo admin o el propio
+    // abogado (ver CasoServiceImpl.listarPorMiembro).
+    List<CasoResponseDTO> listarPorMiembro(Integer idAbogado, int page, int size);
+
     // Gestión
     CasoResponseDTO buscarPorId(Integer id);
     CasoResponseDTO actualizar(Integer id, CasoRequestDTO request);

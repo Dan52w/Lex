@@ -11,6 +11,8 @@ public interface AbogadoService {
     Optional<AbogadoResponseDTO> buscarPorId(Integer id);
     List<AbogadoResponseDTO> listarTodos(Integer idFirma);
     List<AbogadoResponseDTO> listarTodos(Integer idFirma, int page, int size);
+    // P0-B2: TODOS los abogados activos (todas las firmas). Solo admin.
+    List<AbogadoResponseDTO> listarTodosActivos(int page, int size);
     List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad);
     List<AbogadoResponseDTO> listarTipo(Integer idFirma, String especialidad, int page, int size);
     List<AbogadoResponseDTO> listarNombre(Integer idFirma, String nombre);

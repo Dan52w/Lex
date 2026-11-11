@@ -41,6 +41,15 @@ public class VinculoCasoController {
         return ResponseEntity.ok(vinculoCasoService.listarMisCasos(idPersona, page, size));
     }
 
+    // P0-B2: mis casos (canónico del front): la persona es la del token,
+    // sin idPersona en la URL. Delega en listarMisCasos por persona.
+    @GetMapping("/mis-casos")
+    public ResponseEntity<List<VinculoCasoResponseDTO>> listarMisCasosAutenticado(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(vinculoCasoService.listarMisCasosAutenticado(page, size));
+    }
+
     @GetMapping("/pendientes")
     public ResponseEntity<List<VinculoCasoResponseDTO>> listarPendientes(
             @RequestParam(defaultValue = "0") int page,

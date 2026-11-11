@@ -7,7 +7,10 @@ import jakarta.validation.constraints.Pattern;
 import java.time.LocalDate;
 
 public record CasoRequestDTO(
-        @NotNull(message = "El caso debe estar asociado a un Abogado o Persona de la firma")
+        // P0-B2: idPersonaCreador e idFirma OPCIONALES. El creador del
+        // vínculo 'Principal' es siempre el usuario autenticado (ver
+        // CasoServiceImpl.guardar) y la firma se deriva del token; si no
+        // hay firma resoluble la creación se rechaza con 400.
         Integer idPersonaCreador,
         @NotNull(message = "El caso debe estar asociado a un cliente")
         Integer idCliente,
@@ -23,7 +26,9 @@ public record CasoRequestDTO(
         Integer idSubtipo,
         @NotNull(message = "El caso debe tener una fecha de inicio")
         LocalDate fecha_Inicio,
-        @NotNull(message = "El caso debe estar referenciado a una firma")
+        // P0-B2: idFirma OPCIONAL. Si es null, el backend lo deriva del
+        // token del usuario autenticado (ver AbogadoServiceImpl.guardar).
+        // Sin firma resoluble la creación se rechaza con 400.
         Integer idFirma,
         Integer idCasoPadre // Opcional
 ) {}

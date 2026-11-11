@@ -55,10 +55,16 @@ public class AbogadoServiceImpl implements AbogadoService {
     public AbogadoResponseDTO guardar(AbogadoRequestDTO request) {
         Validaciones.requerirNoNulo(request, "request");
         Validaciones.requerirId(request.idPersona(), "idPersona");
-        Validaciones.requerirId(request.idFirma(), "idFirma");
+        // P0-B2: idFirma opcional; si no viene, se deriva del token. Sin
+        // firma resoluble la creación se rechaza con 400 claro.
+        Integer idFirma = request.idFirma() != null ? request.idFirma()
+                : contextoSeguridad.idFirmaAutenticada().orElse(null);
+        if (idFirma == null) {
+            throw new IllegalArgumentException("No tienes una firma asignada; selecciona una firma");
+        }
         Validaciones.requerirId(request.idTipoAbogado(), "idTipoAbogado");
         String tarjeta = Validaciones.requerirNoBlank(request.tarjeta_Profesional(), "tarjeta_Profesional").trim();
-        contextoSeguridad.verificarMismaFirma(request.idFirma());
+        contextoSeguridad.verificarMismaFirma(idFirma);
 
         // 1. Convertir DTO a Entidad base
         Abogado abogado = abogadoMapper.toEntity(request);
@@ -80,7 +86,7 @@ public class AbogadoServiceImpl implements AbogadoService {
             throw new IllegalStateException("La persona ya tiene un registro de abogado.");
         }
         // ... setear firma y tipo abogado ...
-        abogado.setFirma(firmaRepository.findById(request.idFirma())
+        abogado.setFirma(firmaRepository.findById(idFirma)
                 .orElseThrow(() -> new EntityNotFoundException("Firma no encontrada")));
         abogado.setTipo_Abogado(tipoAbogadoRepository.findById(request.idTipoAbogado())
                 .orElseThrow(() -> new EntityNotFoundException("Especialización no encontrada")));
@@ -113,6 +119,16 @@ public class AbogadoServiceImpl implements AbogadoService {
 
         // El mapper se encarga de convertir toda la lista de un golpe
         return abogadoMapper.toResponseList(abogados);
+    }
+
+    @Override
+    public List<AbogadoResponseDTO> listarTodosActivos(int page, int size) {
+        // P0-B2: listado base para la vista /equipo del admin. Solo admin.
+        if (!contextoSeguridad.esAdmin()) {
+            throw new SecurityException("Solo un administrador puede listar los abogados de todas las firmas.");
+        }
+        return abogadoMapper.toResponseList(
+                abogadoRepository.findAllActivos(Paginacion.crear(page, size)));
     }
 
     @Override

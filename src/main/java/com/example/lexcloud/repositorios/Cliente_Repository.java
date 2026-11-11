@@ -56,6 +56,25 @@ public interface Cliente_Repository extends JpaRepository<Cliente, Integer> {
             @Param("firmaId") Integer firmaId
     );
 
+    // P0-B2: buscar por identificación en CUALQUIER firma (solo la usa el
+    // admin cuando no se indica idFirma: el no-admin siempre pasa por
+    // findByIdentificacionAndFirma con su firma derivada del token).
+    @Query("SELECT c FROM Cliente c " +
+            "LEFT JOIN FETCH c.tipoIdentificacion " +
+            "LEFT JOIN FETCH c.tipoCliente " +
+            "WHERE c.identificacion = :identificacion " +
+            "AND c.activo = true")
+    Optional<Cliente> findByIdentificacionActivo(@Param("identificacion") String identificacion);
+
+    // P0-B2: TODOS los clientes activos de TODAS las firmas (solo admin,
+    // ver ClienteServiceImpl.listarTodosActivos). H7: ORDER BY c.id.
+    @Query("SELECT c FROM Cliente c " +
+            "LEFT JOIN FETCH c.tipoIdentificacion " +
+            "LEFT JOIN FETCH c.tipoCliente " +
+            "WHERE c.activo = true " +
+            "ORDER BY c.id")
+    List<Cliente> findAllActivos(Pageable pageable);
+
     // =========================================================================
     // VARIANTES PAGINADAS
     // Misma consulta que arriba, con Pageable para no traer listas sin límite

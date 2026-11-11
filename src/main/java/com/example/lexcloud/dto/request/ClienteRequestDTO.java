@@ -37,7 +37,9 @@ public record ClienteRequestDTO(
         @Email(message = "Debe ser un email válido")
         String correo,
 
-        @NotNull(message = "El Cliente debe estar asociado a una Firma")
+        // P0-B2: idFirma OPCIONAL. Si es null, el backend lo deriva del
+        // token del usuario autenticado (ver ClienteServiceImpl.guardar).
+        // Sin firma resoluble la creación se rechaza con 400.
         Integer idFirma,
 
         @NotNull(message = "El cliente debe tener un tipo de cliente asignado (Natural/Jurídica)")

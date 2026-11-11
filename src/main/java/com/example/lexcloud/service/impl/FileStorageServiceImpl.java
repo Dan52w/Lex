@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -28,7 +29,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     /**
      * Tamaño máximo de subida: 10 MB (C9). Se aplica EN CÓDIGO, nunca en
      * properties. Es la ÚNICA definición del tope: el controlador y
-     * DocumentoServiceImpl reutilizan esta constante.
+     * DocumentoServiceImpl reutilizan esta constante, y el bean
+     * {@code config.MultipartConfig} la reutiliza para el límite a nivel
+     * de contenedor (S8, antes del parseo del multipart).
      */
     public static final long TAMANIO_MAXIMO_BYTES = 10_485_760L;
 
@@ -46,6 +49,24 @@ public class FileStorageServiceImpl implements FileStorageService {
             "jpg", "image/jpeg",
             "jpeg", "image/jpeg",
             "png", "image/png");
+
+    /**
+     * Firmas de contenido (magic bytes) por extensión (S9). Un archivo
+     * Office Open XML (docx/xlsx) es un ZIP: acepta la firma de entrada
+     * de archivo ({@code PK\x03\x04}) y la de ZIP vacío ({@code PK\x05\x06}).
+     * Los formatos OLE2 (doc/xls) comparten la firma de Compound File.
+     */
+    private static final Map<String, byte[][]> FIRMAS_POR_EXTENSION = Map.of(
+            "pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}}, // %PDF
+            "jpg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}},
+            "jpeg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}},
+            "png", new byte[][]{{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}},
+            "doc", new byte[][]{{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0,
+                    (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1}},
+            "xls", new byte[][]{{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0,
+                    (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1}},
+            "docx", new byte[][]{{0x50, 0x4B, 0x03, 0x04}, {0x50, 0x4B, 0x05, 0x06}},
+            "xlsx", new byte[][]{{0x50, 0x4B, 0x03, 0x04}, {0x50, 0x4B, 0x05, 0x06}});
 
     /**
      * Longitud máxima del nombre (ya sanitizado, con extensión) que se
@@ -73,14 +94,18 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     /**
      * Valida un archivo ANTES de subirlo (C9): no vacío, tamaño dentro del
-     * tope, extensión permitida y Content-Type coherente con la extensión.
+     * tope, extensión permitida, Content-Type coherente con la extensión y
+     * firma de contenido (magic bytes, S9) coherente con la extensión.
      * La usa el controlador (validación temprana) y la re-valida
      * {@link #guardarArchivo(MultipartFile, String)} (defensa en profundidad:
      * no se confía solo en el controlador).
      *
      * <p>El Content-Type lo declara el cliente, así que solo se comprueba su
      * coherencia con la extensión; si no viene declarado, manda la extensión.
-     * No se inspecciona el contenido (magic bytes): queda fuera de este lote.</p>
+     * La firma de contenido sí se inspecciona: la extensión y el
+     * Content-Type se pueden falsificar sin cambiar el archivo, la cabecera
+     * no. La verificación lee los primeros bytes (el archivo ya está acotado
+     * a 10 MB y {@code guardarArchivo} lo vuelve a leer para subirlo).</p>
      *
      * @throws IllegalArgumentException si el archivo no pasa alguna validación
      */
@@ -109,6 +134,40 @@ public class FileStorageServiceImpl implements FileStorageService {
                 throw new IllegalArgumentException("El Content-Type no corresponde con la extensión del archivo.");
             }
         }
+        verificarFirmaContenido(archivo, extension);
+    }
+
+    /**
+     * Comprueba que la cabecera del archivo coincida con una de las firmas
+     * conocidas de su extensión (S9). Un archivo más corto que la firma, o
+     * que no empiece por ninguna, se rechaza con 400 claro.
+     */
+    private static void verificarFirmaContenido(MultipartFile archivo, String extension) {
+        byte[][] firmas = FIRMAS_POR_EXTENSION.get(extension);
+        if (firmas == null) {
+            return; // Sin firma conocida para la extensión; no se bloquea.
+        }
+        final byte[] contenido;
+        try {
+            contenido = archivo.getBytes();
+        } catch (IOException e) {
+            throw new IllegalArgumentException("No se pudo leer el archivo.");
+        }
+        for (byte[] firma : firmas) {
+            if (contenido.length >= firma.length && comienzaCon(contenido, firma)) {
+                return;
+            }
+        }
+        throw new IllegalArgumentException("El contenido del archivo no corresponde con su extensión.");
+    }
+
+    private static boolean comienzaCon(byte[] contenido, byte[] firma) {
+        for (int i = 0; i < firma.length; i++) {
+            if (contenido[i] != firma[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String extraerExtension(String nombreArchivo) {

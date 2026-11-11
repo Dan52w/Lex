@@ -69,6 +69,16 @@ public class FirmaServiceImpl implements FirmaService {
     }
 
     @Override
+    public List<FirmaResponseDTO> listarTodas(int page, int size) {
+        // P0-B2: listado base para el selector de firma del front. Solo
+        // admin. La entidad Firma no tiene flag de activo, así que "activas"
+        // son todas las firmas registradas.
+        exigirAdmin();
+        return firmaMapper.toResponseList(
+                firmaRepository.findAll(Paginacion.crear(page, size)).getContent());
+    }
+
+    @Override
     public List<FirmaResponseDTO> listarPorNombre(String nombre) {
         return listarPorNombre(nombre, 0, Paginacion.TAMANO_POR_DEFECTO);
     }
@@ -87,10 +97,9 @@ public class FirmaServiceImpl implements FirmaService {
      * firma, o consultado por un usuario sin firma resoluble responde vacío:
      * los tres casos son indistinguibles de "no existe", así que la respuesta
      * no filtra si un NIT existe. Decisión documentada: no se restringe a
-     * admin (un abogado necesita validar el NIT de su propia firma) y
-     * {@code buscarPorId} queda abierto como lectura (C3: lecturas abiertas);
-     * cerrarlo es decisión del coordinador, porque el front podría resolver
-     * firmas por id en flujos que este lote no audita.
+     * admin (un abogado necesita validar el NIT de su propia firma).
+     * {@code buscarPorId} se cerró aparte (S7): solo la propia firma,
+     * salvo admin.
      */
     @Override
     public Optional<FirmaResponseDTO> buscarPorNit(String nit) {
@@ -105,6 +114,17 @@ public class FirmaServiceImpl implements FirmaService {
 
     @Override
     public Optional<FirmaResponseDTO> buscarPorId(Integer id) {
+        // S7: filtro de firma (antes abierto a cualquier autenticado). El
+        // admin ve cualquier firma; un no-admin solo la suya; sin firma
+        // resoluble no se devuelve nada (indistinguible de "no existe").
+        if (contextoSeguridad.esAdmin()) {
+            return firmaRepository.findById(id)
+                    .map(firmaMapper::toResponse);
+        }
+        Integer firmaPropia = contextoSeguridad.idFirmaAutenticada().orElse(null);
+        if (firmaPropia == null || !firmaPropia.equals(id)) {
+            return Optional.empty();
+        }
         return firmaRepository.findById(id)
                 .map(firmaMapper::toResponse);
     }

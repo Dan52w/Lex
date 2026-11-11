@@ -227,6 +227,14 @@ public class VinculoCasoServiceImpl implements VinculoCasoService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<VinculoCasoResponseDTO> listarMisCasosAutenticado(int page, int size) {
+        // P0-B2: la persona es la del token; delega en el listado por
+        // persona, que ya aplica verificarMismaPersona (pasa: es uno mismo).
+        return listarMisCasos(contextoSeguridad.idPersonaAutenticada(), page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<VinculoCasoResponseDTO> listarPendientesAutorizacion() {
         return listarPendientesAutorizacion(0, Paginacion.TAMANO_POR_DEFECTO);
     }

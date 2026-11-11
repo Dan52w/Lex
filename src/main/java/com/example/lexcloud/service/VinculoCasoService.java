@@ -12,6 +12,9 @@ public interface VinculoCasoService {
     List<VinculoCasoResponseDTO> listarPersonalAsignado(Integer idCaso, int page, int size);
     List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona);
     List<VinculoCasoResponseDTO> listarMisCasos(Integer idPersona, int page, int size);
+    // P0-B2: vínculos del usuario autenticado (idPersona del token).
+    // Delega en listarMisCasos(idPersona, page, size).
+    List<VinculoCasoResponseDTO> listarMisCasosAutenticado(int page, int size);
     List<VinculoCasoResponseDTO> listarPendientesAutorizacion();
     List<VinculoCasoResponseDTO> listarPendientesAutorizacion(int page, int size);
     Optional<VinculoCasoResponseDTO> obtenerAbogadoPrincipal(Integer idCaso);

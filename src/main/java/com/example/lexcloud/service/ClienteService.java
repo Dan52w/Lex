@@ -10,6 +10,11 @@ public interface ClienteService {
     ClienteResponseDTO guardar(ClienteRequestDTO request);
     List<ClienteResponseDTO> listarFirma(Integer idFirma);
     List<ClienteResponseDTO> listarFirma(Integer idFirma, int page, int size);
+    // P0-B2: clientes de la firma del usuario autenticado. Admin: TODOS
+    // los clientes activos (todas las firmas). Sin firma: lista vacía.
+    List<ClienteResponseDTO> listarMiFirma(int page, int size);
+    // P0-B2: TODOS los clientes activos (todas las firmas). Solo admin.
+    List<ClienteResponseDTO> listarTodosActivos(int page, int size);
     List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro);
     List<ClienteResponseDTO> buscarClientes(Integer idFirma, String filtro, int page, int size);
     Optional<ClienteResponseDTO> buscarPorIdentificacion(String identificacion, Integer idFirma);

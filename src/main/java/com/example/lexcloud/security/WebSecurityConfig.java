@@ -99,12 +99,19 @@ public class WebSecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
-                        // B5 — permitAll SOLO para /api/auth/login. El resto
-                        // de /api/auth/** (register, logout, existe-correo)
-                        // exige autenticación: /api/test/** ya no es público
-                        // (no existe ningún controlador bajo /api/test; era
-                        // una puerta latente).
-                        auth.requestMatchers("/api/auth/login").permitAll()
+                        // B5 — permitAll para /api/auth/login y /api/auth/register.
+                        // El resto de /api/auth/** (logout, existe-correo) exige
+                        // autenticación: /api/test/** ya no es público (no existe
+                        // ningún controlador bajo /api/test; era una puerta latente).
+                        // /register es público a nivel de filtro PORQUE el candado
+                        // real vive en AuthServiceImpl.registrar (C1): solo permite
+                        // registrar sin admin cuando todavía no existe NINGUNA
+                        // credencial (bootstrap de la primera cuenta); en cuanto
+                        // existe una, exige sesión de admin y el llamador sin
+                        // sesión recibe 403. Si /register exigiera autenticación
+                        // aquí, el bootstrap sería imposible: no habría cuenta
+                        // con la que autenticarse.
+                        auth.requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                                 .anyRequest().authenticated()
                 );
 

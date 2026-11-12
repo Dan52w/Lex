@@ -6,8 +6,10 @@ import com.example.lexcloud.dto.response.AuthResponseDTO;
 import com.example.lexcloud.dto.response.MeResponseDTO;
 import com.example.lexcloud.security.jwt.JwtUtil;
 import com.example.lexcloud.security.service.ContextoSeguridad;
+import com.example.lexcloud.security.service.TokenRevocadoService;
 import com.example.lexcloud.security.service.UserDetailsImpl;
 import com.example.lexcloud.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,15 +28,18 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final AuthService authService;
     private final ContextoSeguridad contextoSeguridad;
+    private final TokenRevocadoService tokenRevocadoService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           AuthService authService,
-                          ContextoSeguridad contextoSeguridad) {
+                          ContextoSeguridad contextoSeguridad,
+                          TokenRevocadoService tokenRevocadoService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.authService = authService;
         this.contextoSeguridad = contextoSeguridad;
+        this.tokenRevocadoService = tokenRevocadoService;
     }
 
     @PostMapping("/login")
@@ -77,12 +82,45 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        // C10 — con Bearer-only no hay sesión de servidor que invalidar ni
-        // cookie que borrar: el cliente descarta el token por su cuenta.
-        // El endpoint se mantiene (ahora exige autenticación) como punto
-        // explícito de cierre de sesión del cliente.
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        // H-03 — el logout ahora REVOCA el token vigente: su `jti` se
+        // inserta en tokens_revocados (migración V6) y AuthTokenFilter
+        // rechazará cualquier petición que lo presente. Con Bearer-only
+        // sigue sin haber sesión de servidor ni cookie que borrar: el
+        // cliente descarta el token por su cuenta, y el servidor además
+        // lo invalida. La respuesta es 200 cuando la petición llega
+        // autenticada (token vigente, revocado o legacy sin `jti`): no
+        // filtrar si la revocación tuvo efecto. OJO: un token YA revocado
+        // o inválido no llega aquí — AuthTokenFilter lo deja sin
+        // autenticar y la cadena responde 401 — así que el segundo
+        // logout con el mismo token da 401, no 200.
+        String jwt = parseBearerToken(request);
+        if (jwt != null && jwtUtil.validateJwtToken(jwt)) {
+            String jti = jwtUtil.getJtiFromJwtToken(jwt);
+            if (jti != null) {
+                Integer idPersona = null;
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl principal) {
+                    idPersona = principal.getId();
+                }
+                tokenRevocadoService.revocar(jti, jwtUtil.getExpirationFromJwtToken(jwt), idPersona);
+            }
+            // Token legacy sin `jti`: no revocable; expira solo (máximo
+            // 24 h). TokenRevocadoService lo registra en el log.
+        }
         return ResponseEntity.ok("Sesión cerrada correctamente");
+    }
+
+    /**
+     * Token Bearer del header {@code Authorization} (mismo criterio que
+     * AuthTokenFilter.parseJwt): solo Bearer, nunca cookie.
+     */
+    private String parseBearerToken(HttpServletRequest request) {
+        String headerAuth = request.getHeader("Authorization");
+        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+            return headerAuth.substring(7);
+        }
+        return null;
     }
 
     @GetMapping("/existe-correo/{correo}")

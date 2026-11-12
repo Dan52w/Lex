@@ -147,13 +147,19 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Override
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarTodosActivos(int page, int size) {
-        // C8 + N4: ya no hay rama global para administradores: TODOS ven
-        // solo las asignaciones activas de su propia firma (la variante con
-        // firma del repositorio, H3). Un admin de la firma A ya no ve datos
-        // de la B; el admin SIN firma (bootstrap) ve lista vacía, nunca 403.
+        // C8 + N4 (corregido V5): TODOS ven solo las asignaciones activas
+        // de su propia firma (la variante con firma del repositorio, H3).
+        // Un admin de la firma A ya no ve datos de la B. La excepción es
+        // el admin SIN firma resoluble — el súper admin (global por
+        // definición: idFirmaAutenticada() siempre es vacío para él) y el
+        // admin bootstrap (legado) — que usa la variante GLOBAL del
+        // repositorio (findAllActiveWithRelationships, ya existía sin
+        // llamador): antes veía lista vacía. Un no-admin sin firma sigue
+        // recibiendo el 403 de idFirmaAutenticadaRequerida() en el helper.
         Integer firmaId = firmaDeAlcanceONullParaAdminSinFirma();
         if (firmaId == null) {
-            return List.of();
+            return equipoAbogadoMapper.toResponseList(
+                    equipoAbogadoRepository.findAllActiveWithRelationships(Paginacion.crear(page, size)));
         }
         return equipoAbogadoMapper.toResponseList(
                 equipoAbogadoRepository.findAllActiveWithRelationshipsByFirma(firmaId, Paginacion.crear(page, size)));
@@ -207,11 +213,13 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
         // las asignaciones de una persona.
         contextoSeguridad.verificarMismaPersona(id);
         // C8/H3 + N4: alcance por firma en JPQL (variante con firma y
-        // paginada), no filtrado en memoria y nunca la variante global. El
-        // admin SIN firma (bootstrap) ve lista vacía, nunca 403.
+        // paginada), no filtrado en memoria. El admin SIN firma (súper
+        // admin global o bootstrap) usa la variante global; un no-admin
+        // sin firma recibe el 403 del helper, nunca lista vacía silenciosa.
         Integer firmaId = firmaDeAlcanceONullParaAdminSinFirma();
         if (firmaId == null) {
-            return List.of();
+            return equipoAbogadoMapper.toResponseList(
+                    equipoAbogadoRepository.findByPersonaId(id, Paginacion.crear(page, size)));
         }
         return equipoAbogadoMapper.toResponseList(
                 equipoAbogadoRepository.findByPersonaIdAndFirma(id, firmaId, Paginacion.crear(page, size)));
@@ -227,12 +235,13 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     @Transactional(readOnly = true)
     public List<EquipoAbogadoResponseDTO> listarPorTipoRelacion(Integer idTipoRelacion, int page, int size) {
         Integer id = Validaciones.requerirId(idTipoRelacion, "idTipoRelacion");
-        // C8/H3 + N4: alcance por firma en JPQL, nunca la variante global
-        // con filtrado en memoria. El admin SIN firma (bootstrap) ve lista
-        // vacía, nunca 403.
+        // C8/H3 + N4: alcance por firma en JPQL, nunca filtrado en memoria.
+        // El admin SIN firma (súper admin global o bootstrap) usa la
+        // variante global; un no-admin sin firma recibe el 403 del helper.
         Integer firmaId = firmaDeAlcanceONullParaAdminSinFirma();
         if (firmaId == null) {
-            return List.of();
+            return equipoAbogadoMapper.toResponseList(
+                    equipoAbogadoRepository.findByTipoRelacionId(id, Paginacion.crear(page, size)));
         }
         return equipoAbogadoMapper.toResponseList(
                 equipoAbogadoRepository.findByTipoRelacionIdAndFirma(id, firmaId, Paginacion.crear(page, size)));
@@ -251,11 +260,14 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
         // C8/H3 + N4: la antigua rama admin llamaba a
         // findActiveByRelationshipType, variante global que el Lote 2 borró
         // del repositorio (el código ya no compilaba). Ahora TODOS usan la
-        // variante con firma y paginada; el admin SIN firma (bootstrap) ve
-        // lista vacía, nunca 403.
+        // variante con firma y paginada, salvo el admin SIN firma (súper
+        // admin global o bootstrap), que usa la variante global paginada
+        // repuesta en el repositorio; un no-admin sin firma recibe el 403
+        // del helper.
         Integer firmaId = firmaDeAlcanceONullParaAdminSinFirma();
         if (firmaId == null) {
-            return List.of();
+            return equipoAbogadoMapper.toResponseList(
+                    equipoAbogadoRepository.findActiveByRelationshipType(id, Paginacion.crear(page, size)));
         }
         return equipoAbogadoMapper.toResponseList(
                 equipoAbogadoRepository.findActiveByRelationshipTypeAndFirma(id, firmaId, Paginacion.crear(page, size)));
@@ -285,11 +297,11 @@ public class EquipoAbogadoServiceImpl implements EquipoAbogadoService {
     }
 
     /**
-     * N4: firma de alcance para los listados por firma. El admin SIN firma
-     * (bootstrap) no tiene firma que acotar: estos listados le devuelven
-     * lista vacía (nunca 403), porque no hay variante global en el
-     * repositorio y no corresponde inventarla. Un no-admin sin firma sigue
-     * recibiendo el 403 de idFirmaAutenticadaRequerida().
+     * N4: firma de alcance para los listados por firma. Devuelve null solo
+     * para el admin SIN firma resoluble (súper admin global o bootstrap):
+     * esos listados usan la variante GLOBAL del repositorio, nunca lista
+     * vacía. Un no-admin sin firma sigue recibiendo el 403 de
+     * idFirmaAutenticadaRequerida().
      */
     private Integer firmaDeAlcanceONullParaAdminSinFirma() {
         Optional<Integer> firma = contextoSeguridad.idFirmaAutenticada();

@@ -3,6 +3,7 @@ package com.example.lexcloud.security;
 import com.example.lexcloud.security.jwt.exception.AuthEntryPointJwt;
 import com.example.lexcloud.security.jwt.AuthTokenFilter;
 import com.example.lexcloud.security.jwt.JwtUtil;
+import com.example.lexcloud.security.service.TokenRevocadoService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,8 +38,9 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter(UserDetailsService userDetailsService) {
-        return new AuthTokenFilter(jwtUtil, userDetailsService);
+    public AuthTokenFilter authenticationJwtTokenFilter(UserDetailsService userDetailsService,
+                                                       TokenRevocadoService tokenRevocadoService) {
+        return new AuthTokenFilter(jwtUtil, userDetailsService, tokenRevocadoService);
     }
 
     // S3 — límite de intentos en el login (10/minuto por IP → 429).

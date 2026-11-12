@@ -75,6 +75,18 @@ public class AgendaController {
         return ResponseEntity.ok(agendaService.listarProximaCitas(idAbogado, page, size));
     }
 
+    // Mis agendas (dashboard): alcance del usuario autenticado en un rango
+    // de fechas — global para súper admin / admin bootstrap, firma para
+    // admin con firma, propia para abogado. Ver AgendaService.listarMisAgendas.
+    @GetMapping("/mis-agendas/rango")
+    public ResponseEntity<List<AgendaResponseDTO>> listarMisAgendasRango(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(agendaService.listarMisAgendas(inicio, fin, page, size));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<AgendaResponseDTO> actualizar(@PathVariable Integer id,@Valid @RequestBody AgendaRequestDTO request) {
         return ResponseEntity.ok(agendaService.actualizar(id, request));

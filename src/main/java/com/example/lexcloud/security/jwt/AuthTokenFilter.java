@@ -1,5 +1,6 @@
 package com.example.lexcloud.security.jwt;
 
+import com.example.lexcloud.security.service.TokenRevocadoService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,11 +17,14 @@ import java.io.IOException;
 public class AuthTokenFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final TokenRevocadoService tokenRevocadoService;
 
     // Constructor explícito
-    public AuthTokenFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
+    public AuthTokenFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService,
+                           TokenRevocadoService tokenRevocadoService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.tokenRevocadoService = tokenRevocadoService;
     }
 
     @Override
@@ -31,6 +35,18 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             String jwt = parseJwt(request);
 
             if (jwt != null && jwtUtil.validateJwtToken(jwt)) {
+                // H-03 — un token revocado (logout) no autentica aunque no
+                // haya expirado: se deja la petición sin autenticación y la
+                // cadena de seguridad responde 401 donde toca. Un token
+                // legacy sin `jti` nunca está revocado (ver
+                // TokenRevocadoService): se acepta hasta que expire.
+                String jti = jwtUtil.getJtiFromJwtToken(jwt);
+                if (jti != null && tokenRevocadoService.estaRevocado(jti)) {
+                    logger.debug("Token JWT revocado (logout previo): no se autentica la petición");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 String username = jwtUtil.getUserNameFromJwtToken(jwt);
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);

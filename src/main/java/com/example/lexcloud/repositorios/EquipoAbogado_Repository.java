@@ -138,4 +138,45 @@ public interface EquipoAbogado_Repository extends JpaRepository<Equipo_Abogados,
             @Param("idTipoRelacion") Integer idTipoRelacion,
             @Param("firmaId") Integer firmaId,
             Pageable pageable);
+
+    // =========================================================================
+    // VARIANTES GLOBALES (TODAS LAS FIRMAS), PAGINADAS
+    // Solo las llama el servicio para el súper admin y el admin bootstrap
+    // (sin firma resoluble): un admin CON firma nunca cae aquí (el
+    // servicio lo desvía a la variante con firma) y un no-admin sin firma
+    // recibe 403 en el helper del servicio antes de llegar al repositorio.
+    // =========================================================================
+
+    // Global de findByPersonaIdAndFirma (misma semántica: sin filtro de
+    // activo, el servicio ya filtra en memoria lo que necesita).
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "JOIN FETCH ea.persona p " +
+            "JOIN FETCH ea.tipoRelacion tr " +
+            "WHERE p.id = :idPersona " +
+            "ORDER BY ea.id")
+    List<Equipo_Abogados> findByPersonaId(
+            @Param("idPersona") Integer idPersona,
+            Pageable pageable);
+
+    // Global de findByTipoRelacionIdAndFirma.
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "JOIN FETCH ea.persona p " +
+            "JOIN FETCH ea.tipoRelacion tr " +
+            "WHERE tr.id = :idTipoRelacion " +
+            "ORDER BY ea.id")
+    List<Equipo_Abogados> findByTipoRelacionId(
+            @Param("idTipoRelacion") Integer idTipoRelacion,
+            Pageable pageable);
+
+    // Global de findActiveByRelationshipTypeAndFirma (la variante global
+    // sin paginar se borró en H4; esta es su equivalente paginada).
+    @Query("SELECT ea FROM Equipo_Abogados ea " +
+            "JOIN FETCH ea.abogado a " +
+            "WHERE ea.tipoRelacion.id = :idTipoRelacion AND ea.activo = true " +
+            "ORDER BY ea.id")
+    List<Equipo_Abogados> findActiveByRelationshipType(
+            @Param("idTipoRelacion") Integer idTipoRelacion,
+            Pageable pageable);
 }

@@ -172,6 +172,48 @@ public class AgendaServiceImpl implements AgendaService {
     }
 
     @Override
+    public List<AgendaResponseDTO> listarMisAgendas(LocalDateTime inicio, LocalDateTime fin) {
+        return listarMisAgendas(inicio, fin, 0, Paginacion.TAMANO_POR_DEFECTO);
+    }
+
+    @Override
+    public List<AgendaResponseDTO> listarMisAgendas(LocalDateTime inicio, LocalDateTime fin, int page, int size) {
+        validarRango(inicio, fin);
+        // V5 (dashboard): la agenda es del ALCANCE del usuario, no de un
+        // abogado concreto. Antes el front resolvía el abogado por persona
+        // (GET /api/abogados/persona/{id}) y el súper admin, el admin sin
+        // perfil de abogado y la secretaria caían en 404: el dashboard
+        // entero quedaba en estado de error aunque casos y clientes sí
+        // cargaran. Ese endpoint por abogado se conserva; este es el
+        // listado por alcance:
+        // - Súper admin o admin bootstrap (sin firma resoluble): TODAS las
+        //   firmas (idFirmaAutenticada() es vacío para ambos).
+        // - Admin CON firma: todas las agendas activas de su firma.
+        // - Abogado u otro rol CON firma: solo su propia agenda (perfil de
+        //   abogado activo; sin perfil no hay agenda propia: lista vacía,
+        //   nunca 403 ni 404).
+        // - No-admin SIN firma resoluble: lista vacía (fail-closed, como
+        //   ClienteServiceImpl.listarMiFirma).
+        Optional<Integer> firma = contextoSeguridad.idFirmaAutenticada();
+        if (firma.isPresent()) {
+            if (contextoSeguridad.esAdmin()) {
+                return agendaMapper.toResponseList(agendaRepository.findByFirmaEnRango(
+                        firma.get(), inicio, fin, Paginacion.crear(page, size)));
+            }
+            return abogadoRepository.findByPersonaIdActivo(contextoSeguridad.idPersonaAutenticada())
+                    .map(abogado -> agendaRepository.findAgendaByAbogadoAndFechaRange(
+                            abogado.getId(), inicio, fin, Paginacion.crear(page, size)))
+                    .map(agendaMapper::toResponseList)
+                    .orElse(List.of());
+        }
+        if (contextoSeguridad.esAdmin()) {
+            return agendaMapper.toResponseList(agendaRepository.findActivasEnRango(
+                    inicio, fin, Paginacion.crear(page, size)));
+        }
+        return List.of();
+    }
+
+    @Override
     public Optional<AgendaResponseDTO> buscarPorId(Integer id) {
         return agendaRepository.findById(id)
                 .map(agenda -> {
